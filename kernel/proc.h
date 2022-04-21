@@ -93,6 +93,10 @@ struct proc {
   int xstate;                  // Exit status to be returned to parent's wait
   int pid;                     // Process ID
 
+  // SJF fields
+  uint mean_ticks;             
+  uint last_ticks;             // the number of ticks in the last CPU burst
+
   // FCFS field
   uint last_runnable_time;     // The value of ticks whenever a process changes to RUNNABLE state
 

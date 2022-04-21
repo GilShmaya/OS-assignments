@@ -130,6 +130,9 @@ found:
   p->pid = allocpid();
   p->state = USED;
 
+  p->mean_ticks = 0;
+  p->last_ticks = 0;
+
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
     freeproc(p);
@@ -449,7 +452,7 @@ scheduler(void)
   #endif
   #ifdef SJF
     printf("SJF scheduler mode\n");
-  //  scheduler_sjf();
+    scheduler_sjf();
   #endif
   #ifdef FCFS
     printf("FCFS scheduler mode\n");
@@ -518,6 +521,42 @@ make_acquired_process_running(struct cpu *c, struct proc *p){
   // It should have changed its p->state before coming back.
   c->proc = 0;
   release(&p->lock);
+}
+
+void scheduler_sjf(void){
+  struct proc *p;
+  struct proc *curr;
+  struct cpu *c = mycpu();
+  
+  c->proc = 0;
+  for(;;){
+    // Avoid deadlock by ensuring that devices can interrupt.
+    intr_on();
+    p = NULL;
+
+    // Select the process that is in the runnable state for the longest time.
+    for(curr = proc; curr < &proc[NPROC]; p++) {
+      if(ticks >= pause_ticks){ // check if pause signal was called
+        acquire(&curr->lock);
+        if(curr->state == RUNNABLE) {
+          curr->mean_ticks = ((SECONDS_TO_TICKS - RATE) * curr->mean_ticks + curr->last_ticks * (RATE)) / SECONDS_TO_TICKS;
+          if(p == NULL){
+            p = curr;
+          } else if(p->mean_ticks > curr->mean_ticks) {
+              swap_process_ptr(&p, &curr);
+          }
+        }
+        if(p != curr)
+          release(&curr->lock);
+      }
+
+      if(p != NULL){
+        uint start = ticks;
+        make_acquired_process_running(c, p);
+        p->last_ticks = ticks - start;
+      }
+    }
+  }
 }
 
 // First-Come-First-Served (FCFS)
