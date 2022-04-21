@@ -534,8 +534,11 @@ void scheduler_sjf(void){
     intr_on();
     p = NULL;
 
+    printf("before loop");
+
     // Select the process that is in the runnable state for the longest time.
     for(curr = proc; curr < &proc[NPROC]; p++) {
+      printf("in loop");
       if(ticks >= pause_ticks){ // check if pause signal was called
         acquire(&curr->lock);
         if(curr->state == RUNNABLE) {
@@ -549,13 +552,15 @@ void scheduler_sjf(void){
         if(p != curr)
           release(&curr->lock);
       }
-
-      if(p != NULL){
-        uint start = ticks;
-        make_acquired_process_running(c, p);
-        p->last_ticks = ticks - start;
-      }
     }
+    printf("after loop");
+
+    if(p != NULL){
+      uint start = ticks;
+      make_acquired_process_running(c, p);
+      p->last_ticks = ticks - start;
+    }
+    
   }
 }
 
@@ -589,10 +594,10 @@ scheduler_fcfs(void) {
         if(p != curr)
           release(&curr->lock);
       }
-
-      if(p != NULL){
-        make_acquired_process_running(c, p);
-      }
+    }
+    
+    if(p != NULL){
+      make_acquired_process_running(c, p);
     }
   }
 }
