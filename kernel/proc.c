@@ -520,7 +520,6 @@ make_acquired_process_running(struct cpu *c, struct proc *p){
   // Process is done running for now.
   // It should have changed its p->state before coming back.
   c->proc = 0;
-  release(&p->lock);
 }
 
 void scheduler_sjf(void){
@@ -534,31 +533,28 @@ void scheduler_sjf(void){
     intr_on();
     p = NULL;
 
-    printf("before loop");
-
     // Select the process that is in the runnable state for the longest time.
-    for(curr = proc; curr < &proc[NPROC]; p++) {
-      printf("in loop");
+    for(curr = proc; curr < &proc[NPROC]; curr++) {
       if(ticks >= pause_ticks){ // check if pause signal was called
         acquire(&curr->lock);
         if(curr->state == RUNNABLE) {
           curr->mean_ticks = ((SECONDS_TO_TICKS - RATE) * curr->mean_ticks + curr->last_ticks * (RATE)) / SECONDS_TO_TICKS;
-          if(p == NULL){
-            p = curr;
-          } else if(p->mean_ticks > curr->mean_ticks) {
-              swap_process_ptr(&p, &curr);
+          if(p == NULL || p->mean_ticks >= curr->mean_ticks) {
+              p = curr;
           }
         }
-        if(p != curr)
-          release(&curr->lock);
+        release(&curr->lock);
       }
     }
-    printf("after loop");
 
     if(p != NULL){
-      uint start = ticks;
-      make_acquired_process_running(c, p);
-      p->last_ticks = ticks - start;
+      acquire(&p->lock);
+      if(p->state == RUNNABLE){
+        uint start = ticks;
+        make_acquired_process_running(c, p);
+        p->last_ticks = ticks - start;
+      }
+      release(&p->lock);
     }
     
   }
