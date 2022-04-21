@@ -29,6 +29,13 @@ extern char trampoline[]; // trampoline.S
 // must be acquired before any p->lock.
 struct spinlock wait_lock;
 
+void 
+update_last_runnable_time(struct proc *p){
+  #ifdef FCFS
+    p->last_runnable_time = ticks;
+  #endif
+}  
+
 // Allocate a page for each process's kernel stack.
 // Map it high in memory, followed by an invalid
 // guard page.
@@ -246,6 +253,7 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
+  update_last_runnable_time(p);
 
   release(&p->lock);
 }
@@ -316,6 +324,7 @@ fork(void)
 
   acquire(&np->lock);
   np->state = RUNNABLE;
+  update_last_runnable_time(p);
   release(&np->lock);
 
   return pid;
@@ -444,7 +453,7 @@ scheduler(void)
   #endif
   #ifdef FCFS
     printf("FCFS scheduler mode\n");
-  //  scheduler_fcfs();
+    scheduler_fcfs();
   #endif
 }
 
@@ -467,27 +476,88 @@ scheduler_default(void)
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
     
-      for(p = proc; p < &proc[NPROC]; p++) {
-        if(ticks >= pause_ticks){ // check if pause signal was called
-          acquire(&p->lock);
-          if(p->state == RUNNABLE) {
-            // Switch to chosen process.  It is the process's job
-            // to release its lock and then reacquire it
-            // before jumping back to us.
-            p->state = RUNNING;
-            c->proc = p;
-            swtch(&c->context, &p->context);
+    for(p = proc; p < &proc[NPROC]; p++) {
+      if(ticks >= pause_ticks){ // check if pause signal was called
+        acquire(&p->lock);
+        if(p->state == RUNNABLE) {
+          // Switch to chosen process.  It is the process's job
+          // to release its lock and then reacquire it
+          // before jumping back to us.
+          p->state = RUNNING;
+          c->proc = p;
+          swtch(&c->context, &p->context);
 
-            // Process is done running for now.
-            // It should have changed its p->state before coming back.
-            c->proc = 0;
-          }
-          release(&p->lock);
+          // Process is done running for now.
+          // It should have changed its p->state before coming back.
+          c->proc = 0;
         }
+        release(&p->lock);
+      }
     }
   }
 }
- 
+
+void
+swap_process_ptr(struct proc **p1, struct proc **p2)
+{
+  struct proc *temp = *p1;
+  *p1 = *p2;
+  *p2 = temp; 
+}     
+
+void 
+make_acquired_process_running(struct cpu *c, struct proc *p){
+  // Switch to chosen process.  It is the process's job
+  // to release its lock and then reacquire it
+  // before jumping back to us.
+  p->state = RUNNING;
+  c->proc = p;
+  swtch(&c->context, &p->context);
+
+  // Process is done running for now.
+  // It should have changed its p->state before coming back.
+  c->proc = 0;
+  release(&p->lock);
+}
+
+// First-Come-First-Served (FCFS)
+// The scheduler will always select the process with the lowest last_runnable_time,
+// and let it run until it either exits or blocks
+void 
+scheduler_fcfs(void) {
+  struct proc *p;
+  struct proc *curr;
+  struct cpu *c = mycpu();
+  
+  c->proc = 0;
+  for(;;){
+    // Avoid deadlock by ensuring that devices can interrupt.
+    intr_on();
+    p = NULL;
+
+
+    // Select the process that is in the runnable state for the longest time.
+    for(curr = proc; curr < &proc[NPROC]; p++) {
+      if(ticks >= pause_ticks){ // check if pause signal was called
+        acquire(&curr->lock);
+        if(curr->state == RUNNABLE) {
+          if(p == NULL){
+            p = curr;
+          } else if(p->last_runnable_time > curr->last_runnable_time) {
+              swap_process_ptr(&p, &curr); 
+          }
+        }
+        if(p != curr)
+          release(&curr->lock);
+      }
+
+      if(p != NULL){
+        make_acquired_process_running(c, p);
+      }
+    }
+  }
+}
+
 
 // Switch to scheduler.  Must hold only p->lock
 // and have changed proc->state. Saves and restores
@@ -523,6 +593,7 @@ yield(void)
   struct proc *p = myproc();
   acquire(&p->lock);
   p->state = RUNNABLE;
+  update_last_runnable_time(p);
   sched();
   release(&p->lock);
 }
@@ -591,6 +662,7 @@ wakeup(void *chan)
       acquire(&p->lock);
       if(p->state == SLEEPING && p->chan == chan) {
         p->state = RUNNABLE;
+        update_last_runnable_time(p);
       }
       release(&p->lock);
     }
@@ -612,6 +684,7 @@ kill(int pid)
       if(p->state == SLEEPING){
         // Wake process from sleep().
         p->state = RUNNABLE;
+        update_last_runnable_time(p);
       }
       release(&p->lock);
       return 0;

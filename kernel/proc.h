@@ -93,6 +93,9 @@ struct proc {
   int xstate;                  // Exit status to be returned to parent's wait
   int pid;                     // Process ID
 
+  // FCFS field
+  uint last_runnable_time;     // The value of ticks whenever a process changes to RUNNABLE state
+
   // wait_lock must be held when using this:
   struct proc *parent;         // Parent process
 
