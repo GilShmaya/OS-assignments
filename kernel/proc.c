@@ -377,9 +377,12 @@ exit(int status)
   sleeping_processes_mean = get_mean(sleeping_processes_mean, p->sleeping_time, number_processes);
   running_processes_mean = get_mean(running_processes_mean, p->running_time, number_processes);
   runnable_processes_mean = get_mean(runnable_processes_mean, p->runnable_time, number_processes);
+  //running_processes_mean = ((running_processes_mean*total_procs)+ p->running_time)/(total_procs+1);
+  //sleeping_processes_mean = ((sleeping_processes_mean*total_procs)+ p->sleeping_time)/(total_procs+1);
+  //runnable_time_mean = ((runnable_time_mean*total_procs)+ p->runnable_time)/(total_procs+1);
   number_processes++;
   program_time += p->running_time;
-  cpu_utilization = program_time / (ticks - start_time);
+  cpu_utilization = 100*program_time / (ticks-start_time);
 
   if(p == initproc)
     panic("init exiting");
@@ -871,6 +874,6 @@ print_stats(void) {
     printf("runnable_processes_mean: %d\n", runnable_processes_mean);
     printf("running_processes_mean: %d\n", running_processes_mean);
     printf("program_time: %d\n", program_time);
-    printf("cpu_utilization: %d\n", cpu_utilization);
-
+    printf("cpu_utilization: %d%\n", cpu_utilization);
+    printf ("ticks : %d\n", ticks);
 }
