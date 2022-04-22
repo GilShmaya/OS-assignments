@@ -577,23 +577,24 @@ scheduler_fcfs(void) {
 
 
     // Select the process that is in the runnable state for the longest time.
-    for(curr = proc; curr < &proc[NPROC]; p++) {
+    for(curr = proc; curr < &proc[NPROC]; curr++) {
       if(ticks >= pause_ticks){ // check if pause signal was called
         acquire(&curr->lock);
         if(curr->state == RUNNABLE) {
-          if(p == NULL){
-            p = curr;
-          } else if(p->last_runnable_time > curr->last_runnable_time) {
-              swap_process_ptr(&p, &curr); 
+          if(p == NULL || p->last_runnable_time > curr->last_runnable_time) {
+              p = curr; 
           }
         }
-        if(p != curr)
-          release(&curr->lock);
+        release(&curr->lock);
       }
     }
     
     if(p != NULL){
-      make_acquired_process_running(c, p);
+      acquire(&p->lock);
+      if(p->state == RUNNABLE){
+        make_acquired_process_running(c, p);
+      }
+      release(&p->lock);
     }
   }
 }
