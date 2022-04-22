@@ -18,6 +18,15 @@ struct spinlock pid_lock;
 
 uint pause_ticks = 0; // indicates the number of tick that need to wait in case pause is called 
 
+//Part 4
+int sleeping_processes_mean = 0;
+int running_processes_mean = 0;
+int runnable_processes_mean = 0;
+int program_time = 0;
+int cpu_utilization = 0;
+int start_time = 0;
+int number_processes = 0;
+
 extern void forkret(void);
 static void freeproc(struct proc *p);
 
@@ -64,6 +73,8 @@ procinit(void)
       initlock(&p->lock, "proc");
       p->kstack = KSTACK((int) (p - proc));
   }
+
+  start_time = ticks;
 }
 
 // Must be called with interrupts disabled,
@@ -348,6 +359,12 @@ reparent(struct proc *p)
   }
 }
 
+int
+get_mean(int last_mean, int curr_time, int num_procs)
+{
+  return ( last_mean * num_procs + curr_time) / (num_procs + 1);
+}
+
 // Exit the current process.  Does not return.
 // An exited process remains in the zombie state
 // until its parent calls wait().
@@ -355,6 +372,14 @@ void
 exit(int status)
 {
   struct proc *p = myproc();
+
+  //Part 4
+  sleeping_processes_mean = get_mean(sleeping_processes_mean, p->sleeping_time, number_processes);
+  running_processes_mean = get_mean(running_processes_mean, p->running_time, number_processes);
+  runnable_processes_mean = get_mean(runnable_processes_mean, p->runnable_time, number_processes);
+  number_processes++;
+  program_time += p->running_time;
+  cpu_utilization = program_time / (ticks - start_time);
 
   if(p == initproc)
     panic("init exiting");
@@ -488,10 +513,16 @@ scheduler_default(void)
           // before jumping back to us.
           p->state = RUNNING;
           c->proc = p;
+          p->runnable_time += ticks - p->start_last_runnable;
+          p->start_last_running = ticks;
           swtch(&c->context, &p->context);
 
           // Process is done running for now.
           // It should have changed its p->state before coming back.
+          if(p->state == RUNNABLE)
+            p->start_last_runnable = ticks;
+          
+          p->running_time += ticks - p->start_last_running;
           c->proc = 0;
         }
         release(&p->lock);
@@ -515,10 +546,16 @@ make_acquired_process_running(struct cpu *c, struct proc *p){
   // before jumping back to us.
   p->state = RUNNING;
   c->proc = p;
+  p->runnable_time += ticks - p->start_last_runnable;
+  p->start_last_running = ticks;
   swtch(&c->context, &p->context);
 
   // Process is done running for now.
   // It should have changed its p->state before coming back.
+  if(p->state == RUNNABLE)
+      p->start_last_runnable = ticks;
+          
+  p->running_time += ticks - p->start_last_running;
   c->proc = 0;
 }
 
@@ -681,6 +718,9 @@ sleep(void *chan, struct spinlock *lk)
   p->chan = chan;
   p->state = SLEEPING;
 
+  //update start sleep time
+  p->start_last_sleeping = ticks;
+
   sched();
 
   // Tidy up.
@@ -702,6 +742,8 @@ wakeup(void *chan)
     if(p != myproc()){
       acquire(&p->lock);
       if(p->state == SLEEPING && p->chan == chan) {
+        p->sleeping_time += ticks - p->start_last_sleeping;
+        p->start_last_runnable = ticks;
         p->state = RUNNABLE;
         update_last_runnable_time(p);
       }
@@ -723,6 +765,11 @@ kill(int pid)
     if(p->pid == pid){
       p->killed = 1;
       if(p->state == SLEEPING){
+        //update time
+        p->sleeping_time += ticks - p->start_last_sleeping;
+        p->start_last_runnable = ticks;
+        p->state = RUNNABLE;
+
         // Wake process from sleep().
         p->state = RUNNABLE;
         update_last_runnable_time(p);
@@ -816,4 +863,14 @@ kill_system(void) {
         kill(pid);
   }
   return 0;
+}
+
+void
+print_stats(void) {
+    printf("sleeping_processes_mean: %d\n", sleeping_processes_mean);
+    printf("runnable_processes_mean: %d\n", runnable_processes_mean);
+    printf("running_processes_mean: %d\n", running_processes_mean);
+    printf("program_time: %d\n", program_time);
+    printf("cpu_utilization: %d\n", cpu_utilization);
+
 }
