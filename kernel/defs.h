@@ -109,6 +109,8 @@ int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
 int             pause_system(int seconds);
 int             kill_system(void);
+int             get_mean(int, int, int);
+void            print_stats(void);
 
 // swtch.S
 void            swtch(struct context*, struct context*);

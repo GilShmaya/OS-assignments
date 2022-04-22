@@ -100,6 +100,14 @@ struct proc {
   // FCFS field
   uint last_runnable_time;     // The value of ticks whenever a process changes to RUNNABLE state
 
+  //Part 4
+  int sleeping_time;           // Total time spent in the SLEEPING state
+  int runnable_time;           // Total time spent in the RUNNABLE state
+  int running_time;            // Total time spent in the RUNNING state
+  int start_last_sleeping;
+  int start_last_runnable;
+  int start_last_running;
+
   // wait_lock must be held when using this:
   struct proc *parent;         // Parent process
 
