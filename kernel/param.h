@@ -14,4 +14,4 @@
 #define SECONDS_TO_TICKS 10
 #define INIT_PROC_ID     1  
 #define SHELL_PROC_ID    2
-#define RATE             0
+#define RATE             5
