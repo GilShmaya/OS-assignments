@@ -377,9 +377,6 @@ exit(int status)
   sleeping_processes_mean = get_mean(sleeping_processes_mean, p->sleeping_time, number_processes);
   running_processes_mean = get_mean(running_processes_mean, p->running_time, number_processes);
   runnable_processes_mean = get_mean(runnable_processes_mean, p->runnable_time, number_processes);
-  //running_processes_mean = ((running_processes_mean*total_procs)+ p->running_time)/(total_procs+1);
-  //sleeping_processes_mean = ((sleeping_processes_mean*total_procs)+ p->sleeping_time)/(total_procs+1);
-  //runnable_time_mean = ((runnable_time_mean*total_procs)+ p->runnable_time)/(total_procs+1);
   number_processes++;
   program_time += p->running_time;
   cpu_utilization = 100*program_time / (ticks-start_time);
@@ -578,7 +575,6 @@ void scheduler_sjf(void){
       if(ticks >= pause_ticks){ // check if pause signal was called
         acquire(&curr->lock);
         if(curr->state == RUNNABLE) {
-          curr->mean_ticks = ((SECONDS_TO_TICKS - RATE) * curr->mean_ticks + curr->last_ticks * (RATE)) / SECONDS_TO_TICKS;
           if(p == NULL || p->mean_ticks >= curr->mean_ticks) {
               p = curr;
           }
@@ -593,6 +589,7 @@ void scheduler_sjf(void){
         uint start = ticks;
         make_acquired_process_running(c, p);
         p->last_ticks = ticks - start;
+        p->mean_ticks = ((SECONDS_TO_TICKS - RATE) * p->mean_ticks + p->last_ticks * (RATE)) / SECONDS_TO_TICKS;
       }
       release(&p->lock);
     }
