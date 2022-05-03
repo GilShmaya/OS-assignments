@@ -20,7 +20,7 @@ static void freeproc(struct proc *p);
 
 extern char trampoline[]; // trampoline.S
 
-extern uint cas(volatile void *addr, int expected, int newval) // cas.S
+//extern uint cas(volatile void *addr, int expected, int newval); // cas.S
 
 // helps ensure that wakeups of wait()ing
 // parents are not lost. helps obey the
@@ -90,11 +90,15 @@ myproc(void) {
 int
 allocpid() {
   int pid;
-
+/*
   do {
     pid = nextpid;
   } while(cas(&nextpid, pid, nextpid + 1));
-
+*/
+  acquire(&pid_lock);
+  pid = nextpid;
+  nextpid = nextpid + 1;
+  release(&pid_lock);
   return pid;
 }
 
