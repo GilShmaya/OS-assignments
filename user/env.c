@@ -12,26 +12,17 @@
 
 
 void env(int size, int interval, char* env_name) {
-    int result = 1;
-    int loop_size = 10e6;
     int n_forks = 2;
     int pid;
     for (int i = 0; i < n_forks; i++) {
        pid = fork();
+       if (pid != 0){
+           printf("PID: %d\n", pid);
+           pid = fork();
+           if (pid != 0)
+            printf("PID: %d\n", pid);
+       }
     }
-    for (int i = 0; i < loop_size; i++) {
-        if (i % (loop_size / (int) 10e0) == 0) {
-        	if (pid == 0) {
-        		printf("%s %d/%d completed.\n", env_name, i, loop_size);
-        	} else {
-        		printf(" ");
-        	}
-        }
-        if (i % interval == 0) {
-            result = result * size;
-        }
-    }
-    printf("\n");
   
 }
 
@@ -47,7 +38,7 @@ void env_freq() {
 int
 main(int argc, char *argv[]){
     env_large();
-    env_freq();
+    //env_freq();   
     
     exit(0);
 
