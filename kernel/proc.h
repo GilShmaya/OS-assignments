@@ -18,12 +18,20 @@ struct context {
   uint64 s11;
 };
 
+struct _list {
+  int head;                   // the index in proc array of the first proc in the list
+  int tail;                   // the index in proc array of the last proc in the list
+};
+
+
 // Per-CPU state.
 struct cpu {
   struct proc *proc;          // The process running on this cpu, or null.
   struct context context;     // swtch() here to enter scheduler().
   int noff;                   // Depth of push_off() nesting.
   int intena;                 // Were interrupts enabled before push_off()?
+  struct _list *runnable_list; // contain processes that are RUNNABLE.   
+  int cpuId;
 };
 
 extern struct cpu cpus[NCPU];
@@ -105,4 +113,8 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+
+  int index;                   // the index in proc array
+  int prev_index;               // the index in proc array of the prev proc in the list
+  int next_index;               // the index in proc array of the next proc in the list
 };

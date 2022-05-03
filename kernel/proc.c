@@ -28,6 +28,70 @@ extern uint cas(volatile void *addr, int expected, int newval); // cas.S
 // must be acquired before any p->lock.
 struct spinlock wait_lock;
 
+struct _list *unused_list;   // contains all UNUSED process entries.
+struct _list *sleeping_list; // contains all SLEEPING processes.
+struct _list *zombie_list;   // contains all ZOMBIE processes.
+
+void initialize_list(struct _list *lst){
+  lst->head = -1;
+  lst->tail = -1;
+}
+
+void initialize_lists(void){
+  initialize_list(unused_list);
+  initialize_list(sleeping_list);
+  initialize_list(zombie_list);
+
+  struct cpu *c;
+  for(c = cpus; c < &cpus[NCPU]; c++)
+   initialize_list(c->runnable_list);
+  printf("here");
+}
+
+void
+initialize_proc(struct proc *p){
+  proc->next_index = -1;
+  proc->prev_index = -1;
+}
+
+int
+isEmpty(struct _list *lst){
+  return lst->tail == -1;
+}
+
+void 
+insert_proc_to_list(struct _list *lst, struct proc *p){
+  if(isEmpty(lst)){
+    lst->head = p->index;
+    lst->tail = p-> index;
+  }
+  else {
+    struct proc *p_tail = &proc[lst->tail];
+    p_tail->next_index = p->index; // update next proc of the curr tail
+    p->prev_index = p_tail->index; // update the prev proc of the new proc
+    lst->tail = p->index;          // update tail
+  }
+}
+
+void 
+remove_proc_to_list(struct _list *lst, struct proc *p){
+  if(lst->head == p->index && lst->tail == p->index) // p is the only proc in the list
+    initialize_list(lst);
+  else if(lst->head == p-> index) {  // p is the head of the list
+    lst->head = p->next_index;
+    proc[lst->head].prev_index = -1;
+  }
+  else if(lst->tail == p-> index) { // p is the tail of the list
+    lst->tail = p->prev_index;
+    proc[lst->tail].next_index = -1;
+  }
+  else {
+    proc[p->prev_index].next_index = p->next_index;
+    proc[p->next_index].prev_index = p->prev_index;
+  }
+  initialize_proc(p);
+}
+
 // Allocate a page for each process's kernel stack.
 // Map it high in memory, followed by an invalid
 // guard page.
@@ -310,6 +374,8 @@ fork(void)
 
   acquire(&wait_lock);
   np->parent = p;
+  insert_proc_to_list(unused_list, p); //test
+  printf("%d\n ", unused_list->head); //test
   release(&wait_lock);
 
   acquire(&np->lock);
