@@ -11,7 +11,3 @@
 #define NBUF         (MAXOPBLOCKS*3)  // size of disk block cache
 #define FSSIZE       1000  // size of file system in blocks
 #define MAXPATH      128   // maximum file path name
-#define SECONDS_TO_TICKS 10
-#define INIT_PROC_ID     1  
-#define SHELL_PROC_ID    2
-#define RATE             5
