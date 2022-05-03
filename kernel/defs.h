@@ -111,6 +111,8 @@ void            initialize_proc(struct proc*);
 int             isEmpty(struct _list*);
 void            insert_proc_to_list(struct _list*, struct proc*);
 void            remove_proc_to_list(struct _list*, struct proc*);
+int             set_cpu(int);
+int             get_cpu(void);
 
 // swtch.S
 void            swtch(struct context*, struct context*);

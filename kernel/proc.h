@@ -31,7 +31,7 @@ struct cpu {
   int noff;                   // Depth of push_off() nesting.
   int intena;                 // Were interrupts enabled before push_off()?
   struct _list *runnable_list; // contain processes that are RUNNABLE.   
-  int cpuId;
+  int cpu_id;
 };
 
 extern struct cpu cpus[NCPU];
@@ -113,6 +113,8 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+
+  int last_cpu;        // the last cpu it was last ran on
 
   int index;                   // the index in proc array
   int prev_index;               // the index in proc array of the prev proc in the list

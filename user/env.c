@@ -25,7 +25,6 @@ void cas_test(int size, int interval, char* env_name) {
 void test_list(int size, int interval, char* env_name) {
     int n_forks = 2;
     int pid;
-    initialize_lists();
     for (int i = 0; i < n_forks; i++) {
        pid = fork();
        if (pid != 0){
