@@ -20,6 +20,8 @@ static void freeproc(struct proc *p);
 
 extern char trampoline[]; // trampoline.S
 
+extern uint cas(volatile void *addr, int expected, int newval) // cas.S
+
 // helps ensure that wakeups of wait()ing
 // parents are not lost. helps obey the
 // memory model when using p->parent.
@@ -88,11 +90,10 @@ myproc(void) {
 int
 allocpid() {
   int pid;
-  
-  acquire(&pid_lock);
-  pid = nextpid;
-  nextpid = nextpid + 1;
-  release(&pid_lock);
+
+  do {
+    pid = nextpid;
+  } while(cas(&nextpid, pid, nextpid + 1));
 
   return pid;
 }
@@ -628,7 +629,7 @@ either_copyin(void *dst, int user_src, uint64 src, uint64 len)
 
 // Print a process listing to console.  For debugging.
 // Runs when user types ^P on console.
-// No lock to avoid wedging a stuck machine further.
+// No lock to avoid wedging a stuck machine further..
 void
 procdump(void)
 {
@@ -649,8 +650,9 @@ procdump(void)
     if(p->state >= 0 && p->state < NELEM(states) && states[p->state])
       state = states[p->state];
     else
-      state = "???";
+      state = "???"; 
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
 }
+
