@@ -572,10 +572,10 @@ scheduler(void)
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
 
-    for(p = proc; p < &proc[NPROC]; p++) { // TODO: remove?
-      if(p->state == RUNNABLE) { // TODO: remove?
-    //if(!isEmpty(&(c->runnable_list))) { // check whether there is a ready process in the cpu
-    //  p =  &proc[c->runnable_list.head]; //  pick the first process from the correct CPU’s list.
+    //for(p = proc; p < &proc[NPROC]; p++) { // TODO: remove?
+    //  if(p->state == RUNNABLE) { // TODO: remove?
+    if(!isEmpty(&(c->runnable_list))) { // check whether there is a ready process in the cpu
+      p =  &proc[c->runnable_list.head]; //  pick the first process from the correct CPU’s list.
 
       acquire(&p->lock);
       if(p->state == RUNNABLE) {  
@@ -594,6 +594,11 @@ scheduler(void)
         c->proc = 0;
       }
       release(&p->lock);
+    }
+    else{
+      #ifdef ON
+        steal_process(c);
+      #endif
     }
   }
 }
@@ -841,10 +846,10 @@ get_cpu(void){
 
 int
 min_cpu(void){
-  cpu *c, *min_cpu;
+  struct cpu *c, *min_cpu;
 // should add an if to insure numberOfCpus>0
   mincpu = cpus;
-  for(c = cpus + 1; c < NCPU && c != NULL; c++){
+  for(c = cpus + 1; c < &cpus[NCPU] && c != NULL ; c++){
     if (c->proc_counter < min_cpu->proc_counter)
         min_cpu = c;
   }
@@ -864,4 +869,23 @@ increment_cpu_process_count(struct cpu *c){
   do{
     curr_count = c->cpu_process_count;
   }while(cas(&(c->cpu_process_count), curr_count, curr_count+1))
+}
+
+void
+steal_process(struct cpu *curr_c){ 
+  struct cpu *c;
+  struct proc *p;
+  int stolen_process;
+  for(c = cpus; c < &cpus[NCPU] && c != NULL ; c++){
+    if(c != curr_c && !isEmpty(&c->runnable_list)){ 
+      do{ //???
+        stolen_process = c->runnable_list.head;
+        remove_proc_to_list
+      }while(cas())
+    }
+  }
+  p = proc[stolen_process];
+  insert_proc_to_list(&c->runnable_list, p);
+  p->last_cpu = c->cpu_id;
+  increment_cpu_process_count(c);
 }
