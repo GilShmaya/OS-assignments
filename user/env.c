@@ -22,16 +22,11 @@ void cas_test(int size, int interval, char* env_name) {
     }
 }
 
-void test_list(int size, int interval, char* env_name) {
+void env() {
     int n_forks = 2;
-    int pid;
     for (int i = 0; i < n_forks; i++) {
-       pid = fork();
-       if (pid != 0){
-           pid = fork();
-       }
+       fork();
     }
-  
 }
 
 /*
@@ -41,13 +36,14 @@ void env_large() {
 
 void env_freq() {
     env(10e1, 10e1, "env_freq");
-} */;
-
+} 
+*/
 
 int
 main(int argc, char *argv[]){
     //test_cas(10e6, 10e6, "env_large");
-    test_list(10e6, 10e6, "env_large");
+    env();
+    //test_list(10e6, 10e6, "env_large");
     exit(0);
 
 }

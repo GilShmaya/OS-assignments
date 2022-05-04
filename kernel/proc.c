@@ -33,10 +33,25 @@ struct _list unused_list = {-1, -1};   // contains all UNUSED process entries.
 struct _list sleeping_list = {-1, -1}; // contains all SLEEPING processes.
 struct _list zombie_list = {-1, -1};   // contains all ZOMBIE processes.
 
+void
+print_list(struct _list lst){
+  int curr = lst.head;
+  printf("\n[ ");
+  while(curr != -1){
+    printf(" %d,", curr);
+    curr = proc[curr].next_index;
+  }
+  printf(" ]\n");
+}
+
+/*
 void initialize_list(struct _list *lst){
+  int curr_tail = lst->tail;
+  if(cas(&lst->tail, curr_tail, -1)){ // if lst is empty
+    lst->head = p-> index;
   lst->head = -1;
   lst->tail = -1;
-}
+}*/
 
 void initialize_runnable_lists(void){
   struct cpu *c;
@@ -51,42 +66,59 @@ initialize_proc(struct proc *p){
   proc->prev_index = -1;
 }
 
-int
+/*int
 isEmpty(struct _list *lst){
-  return lst->tail == -1;
-}
+  return lst->head == -1;
+}*/
 
 void 
 insert_proc_to_list(struct _list *lst, struct proc *p){
-  if(isEmpty(lst)){
-    lst->head = p->index;
-    lst->tail = p-> index;
+  printf("before insert: \n");
+  print_list(*lst); // delete
+
+  if(cas(&lst->tail, -1, p->index) == 0){ // if lst is empty
+    lst->head = p->index; // the only option is to insert another process and change tail, changing head is safe now
   }
   else {
-    struct proc *p_tail = &proc[lst->tail];
+    int curr_tail;
+    struct proc *p_tail;
+    do {
+      p_tail = &proc[lst->tail];
+      curr_tail = lst->tail;
+    } while(cas(&lst->tail, curr_tail, p->index)); // try to update tail
     p_tail->next_index = p->index; // update next proc of the curr tail
-    p->prev_index = p_tail->index; // update the prev proc of the new proc
-    lst->tail = p->index;          // update tail
+    p->prev_index = curr_tail; // update the prev proc of the new proc
   }
+  printf("after insert: \n");
+  print_list(*lst); // delete
 }
 
 void 
 remove_proc_to_list(struct _list *lst, struct proc *p){
-  if(lst->head == p->index && lst->tail == p->index) // p is the only proc in the list
-    initialize_list(lst);
-  else if(lst->head == p->index) {  // p is the head of the list
-    lst->head = p->next_index;
-    proc[lst->head].prev_index = -1;
+  printf("before remove: \n");
+  print_list(*lst); // delete
+  if(cas(&lst->tail, p->index, p->prev_index) == 0 && p->prev_index != -1){ // case: p is the list's tail
+    struct proc *p_new_tail = &proc[lst->tail];
+    int curr_tail_next = p_new_tail->next_index;
+    cas(&p_new_tail->next_index, curr_tail_next, -1);
   }
-  else if(lst->tail == p->index) { // p is the tail of the list
-    lst->tail = p->prev_index;
-    proc[lst->tail].next_index = -1;
+  if(cas(&lst->head, p->index, p->next_index) == 0 && p->next_index != -1){ // case: p is the list's head
+    struct proc *p_new_head = &proc[lst->head];
+    int curr_head_prev = p_new_head->prev_index;
+    cas(&p_new_head->prev_index, curr_head_prev, -1);
   }
-  else {
-    proc[p->prev_index].next_index = p->next_index;
-    proc[p->next_index].prev_index = p->prev_index;
+  if(p->prev_index != -1){ // case: p is in the middle
+    int prev_next_index = proc[p->prev_index].next_index;
+    cas(&proc[p->prev_index].next_index, prev_next_index, p->next_index);
+  }
+  if(p->next_index != -1){
+    int next_prev_index = proc[p->next_index].prev_index;
+    cas(&proc[p->next_index].prev_index, next_prev_index, p->prev_index);
   }
   initialize_proc(p);
+
+  printf("after remove: \n");
+  print_list(*lst); // delete
 }
 
 // Allocate a page for each process's kernel stack.
@@ -178,7 +210,7 @@ allocproc(void)
   struct proc *p;
 
   for(p = proc; p < &proc[NPROC]; p++) {
-  //while(unused_list.head != -1){
+  //while(!isEmpty(&unused_list)){
     //p = &proc[unused_list.head];
     acquire(&p->lock);
     if(p->state == UNUSED) {
@@ -666,7 +698,7 @@ wakeup(void *chan)
   //int next;
 
   for(p = proc; p < &proc[NPROC]; p++) {
-  //while(curr > -1) {
+  //while(curr) {
     //p = &proc[curr];
     //next = p->next_index;
     if(p != myproc()){
@@ -676,12 +708,15 @@ wakeup(void *chan)
         p->state = RUNNABLE;
         printf("remove wakeup sleep %d\n", p->index); //delete
         remove_proc_to_list(&sleeping_list, p);
+        //printf("pp  nexttttt %d\n", p->next_index); //delete
         printf("insert wakeup runnable %d\n", p->index); //delete
         insert_proc_to_list(&(c->runnable_list), p);
       }
       release(&p->lock);
     }
+    //printf("nexttttt222 %d\n", next); //delete
     //curr = next;
+    //printf("currr2222 %d\n", curr); //delete
   }
 }
 
