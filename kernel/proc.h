@@ -32,6 +32,7 @@ struct cpu {
   int intena;                 // Were interrupts enabled before push_off()?
   struct _list runnable_list; // contain processes that are RUNNABLE.   
   int cpu_id;
+  uint64 cpu_process_count;     //  the number of processes that were admitted to it since the system started running
 };
 
 extern struct cpu cpus[NCPU];

@@ -113,6 +113,8 @@ void            insert_proc_to_list(struct _list*, struct proc*);
 void            remove_proc_to_list(struct _list*, struct proc*);
 int             set_cpu(int);
 int             get_cpu(void);
+int             cpu_process_count(int);
+             
 
 // swtch.S
 void            swtch(struct context*, struct context*);

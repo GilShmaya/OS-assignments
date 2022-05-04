@@ -427,9 +427,17 @@ fork(void)
 
   acquire(&np->lock);
   np->state = RUNNABLE;
-  np->last_cpu = p->last_cpu; 
+
+  np->last_cpu = p->last_cpu; // case BLNCFLG=OFF -> cpu = parent's cpu 
+  #ifdef ON
+    np->last_cpu = min_cpu_process_count(); // case BLNCFLG=ON -> cpu = CPU with the lowest counter value
+  #endif
+  
+  struct cpu &c = cpus[np->last_cpu];
+  increment_cpu_process_count(c);
+
   printf("insert fork runnable %d\n", np->index); //delete
-  insert_proc_to_list(&(cpus[np->last_cpu].runnable_list), np); // admit the new process to the father’s current CPU’s ready list
+  insert_proc_to_list(&(c.runnable_list), np); // admit the new process to the father’s current CPU’s ready list
   release(&np->lock);
 
   return pid;
@@ -704,11 +712,17 @@ wakeup(void *chan)
     if(p != myproc()){
       acquire(&p->lock);
       if(p->state == SLEEPING && p->chan == chan) {
-        c = &cpus[p->last_cpu];
         p->state = RUNNABLE;
         printf("remove wakeup sleep %d\n", p->index); //delete
         remove_proc_to_list(&sleeping_list, p);
         //printf("pp  nexttttt %d\n", p->next_index); //delete
+
+        #ifdef ON
+          p->last_cpu = min_cpu_process_count(); // case BLNCFLG=ON -> cpu = CPU with the lowest counter value
+        #endif
+        c = &cpus[p->last_cpu];
+        increment_cpu_process_count(c);
+
         printf("insert wakeup runnable %d\n", p->index); //delete
         insert_proc_to_list(&(c->runnable_list), p);
       }
@@ -823,4 +837,31 @@ int
 get_cpu(void){
   struct proc *p = myproc();
   return p->last_cpu;
+}
+
+int
+min_cpu(void){
+  cpu *c, *min_cpu;
+// should add an if to insure numberOfCpus>0
+  mincpu = cpus;
+  for(c = cpus + 1; c < NCPU && c != NULL; c++){
+    if (c->proc_counter < min_cpu->proc_counter)
+        min_cpu = c;
+  }
+  return min_cpu->cpu_id;   
+}
+
+int
+cpu_process_count(int cpu_num){
+  if (cpu_num > 0 && cpu_num < NCPU && &cpus[cpu_num] != NULL) 
+    return cpus[cpu_num]->proc_counter;
+  return -1;
+}
+
+void 
+increment_cpu_process_count(struct cpu *c){
+  uint64 curr_count;
+  do{
+    curr_count = c->cpu_process_count;
+  }while(cas(&(c->cpu_process_count), curr_count, curr_count+1))
 }
