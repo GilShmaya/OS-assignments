@@ -29,24 +29,20 @@ extern uint cas(volatile void *addr, int expected, int newval); // cas.S
 // must be acquired before any p->lock.
 struct spinlock wait_lock;
 
-struct _list *unused_list;   // contains all UNUSED process entries.
-struct _list *sleeping_list; // contains all SLEEPING processes.
-struct _list *zombie_list;   // contains all ZOMBIE processes.
+struct _list unused_list = {-1, -1};   // contains all UNUSED process entries.
+struct _list sleeping_list = {-1, -1}; // contains all SLEEPING processes.
+struct _list zombie_list = {-1, -1};   // contains all ZOMBIE processes.
 
 void initialize_list(struct _list *lst){
   lst->head = -1;
   lst->tail = -1;
 }
 
-void initialize_lists(void){
-  initialize_list(unused_list);
-  initialize_list(sleeping_list);
-  initialize_list(zombie_list);
-
+void initialize_runnable_lists(void){
   struct cpu *c;
-  for(c = cpus; c < &cpus[NCPU] && c != NULL ; c++)
-   initialize_list(c->runnable_list);
-  printf("here");
+  for(c = cpus; c < &cpus[NCPU] && c != NULL ; c++){
+    c->runnable_list = (struct _list){-1, -1};
+  }
 }
 
 void
@@ -78,11 +74,11 @@ void
 remove_proc_to_list(struct _list *lst, struct proc *p){
   if(lst->head == p->index && lst->tail == p->index) // p is the only proc in the list
     initialize_list(lst);
-  else if(lst->head == p-> index) {  // p is the head of the list
+  else if(lst->head == p->index) {  // p is the head of the list
     lst->head = p->next_index;
     proc[lst->head].prev_index = -1;
   }
-  else if(lst->tail == p-> index) { // p is the tail of the list
+  else if(lst->tail == p->index) { // p is the tail of the list
     lst->tail = p->prev_index;
     proc[lst->tail].next_index = -1;
   }
@@ -114,7 +110,9 @@ void
 procinit(void)
 {
   struct proc *p;
-  
+
+  initialize_runnable_lists();
+
   initlock(&pid_lock, "nextpid");
   initlock(&wait_lock, "wait_lock");
 
@@ -124,7 +122,8 @@ procinit(void)
       p->kstack = KSTACK((int) (p - proc));
       p->index = i;
       initialize_proc(p);
-      insert_proc_to_list(unused_list, p); // procinit to admit all UNUSED process entries
+      printf("insert procinit unused %d\n", p->index); //delete
+      insert_proc_to_list(&unused_list, p); // procinit to admit all UNUSED process entries
       i++;
   }
 }
@@ -178,11 +177,13 @@ allocproc(void)
 {
   struct proc *p;
 
-  while(unused_list->head != -1){
-    p = &proc[unused_list->head];
+  for(p = proc; p < &proc[NPROC]; p++) {
+  //while(unused_list.head != -1){
+    //p = &proc[unused_list.head];
     acquire(&p->lock);
     if(p->state == UNUSED) {
-      remove_proc_to_list(unused_list, p); // choose the new process entry to initialize from the UNUSED entry list.
+      printf("remove allocproc unused %d\n", p->index); //delete
+      remove_proc_to_list(&unused_list, p); // choose the new process entry to initialize from the UNUSED entry list.
       goto found;
     } else {
       release(&p->lock);
@@ -239,8 +240,10 @@ freeproc(struct proc *p)
   p->xstate = 0;
   p->state = UNUSED;
 
-  remove_proc_to_list(zombie_list, p); // remove the freed process from the ZOMBIE list
-  insert_proc_to_list(unused_list, p); // admit its entry to the UNUSED entry list.
+  printf("remove free proc zombie %d\n", p->index); //delete
+  remove_proc_to_list(&zombie_list, p); // remove the freed process from the ZOMBIE list
+  printf("insert free proc unused %d\n", p->index); //delete
+  insert_proc_to_list(&unused_list, p); // admit its entry to the UNUSED entry list.
 }
 
 // Create a user page table for a given process,
@@ -320,7 +323,8 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
-  insert_proc_to_list(cpus[0].runnable_list, p); // admit the init process (the first process in the OS) to the first CPU’s list.
+  printf("insert userinit runnable %d\n", p->index); //delete
+  insert_proc_to_list(&(cpus[0].runnable_list), p); // admit the init process (the first process in the OS) to the first CPU’s list.
 
   release(&p->lock);
 }
@@ -392,7 +396,8 @@ fork(void)
   acquire(&np->lock);
   np->state = RUNNABLE;
   np->last_cpu = p->last_cpu; 
-  insert_proc_to_list(cpus[np->last_cpu].runnable_list, p); // admit the new process to the father’s current CPU’s ready list
+  printf("insert fork runnable %d\n", np->index); //delete
+  insert_proc_to_list(&(cpus[np->last_cpu].runnable_list), np); // admit the new process to the father’s current CPU’s ready list
   release(&np->lock);
 
   return pid;
@@ -450,7 +455,8 @@ exit(int status)
 
   p->xstate = status;
   p->state = ZOMBIE;
-  insert_proc_to_list(zombie_list, p); // exit to admit the exiting process to the ZOMBIE list
+  printf("insert exit zombie %d\n", p->index); //delete
+  insert_proc_to_list(&zombie_list, p); // exit to admit the exiting process to the ZOMBIE list
 
   release(&wait_lock);
 
@@ -526,29 +532,31 @@ scheduler(void)
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
 
-    //for(p = proc; p < &proc[NPROC]; p++) { // TODO: remove?
-    //  if(p->state == RUNNABLE) { // TODO: remove?
-    if(!isEmpty(c->runnable_list)) { // check whether there is a ready process in the cpu
-      p =  &proc[c->runnable_list->head]; //  pick the first process from the correct CPU’s list.
+    for(p = proc; p < &proc[NPROC]; p++) { // TODO: remove?
+      if(p->state == RUNNABLE) { // TODO: remove?
+    //if(!isEmpty(&(c->runnable_list))) { // check whether there is a ready process in the cpu
+    //  p =  &proc[c->runnable_list.head]; //  pick the first process from the correct CPU’s list.
 
       acquire(&p->lock);
+      if(p->state == RUNNABLE) {  
+        // Switch to chosen process.  It is the process's job
+        // to release its lock and then reacquire it
+        // before jumping back to us.
+        p->state = RUNNING;
+        c->proc = p;
+        p->last_cpu = c->cpu_id;
+        printf("remove sched runnable %d\n", p->index); //delete
+        remove_proc_to_list(&(c->runnable_list), p);
+        swtch(&c->context, &p->context);
 
-      // Switch to chosen process.  It is the process's job
-      // to release its lock and then reacquire it
-      // before jumping back to us.
-      p->state = RUNNING;
-      remove_proc_to_list(c->runnable_list, p);
-      p->last_cpu = c->cpu_id;
-      c->proc = p;
-      swtch(&c->context, &p->context);
-
-      // Process is done running for now.
-      // It should have changed its p->state before coming back.
-      c->proc = 0;
-
+        // Process is done running for now.
+        // It should have changed its p->state before coming back.
+        c->proc = 0;
+      }
       release(&p->lock);
     }
   }
+}
 }
 
 // Switch to scheduler.  Must hold only p->lock
@@ -587,7 +595,8 @@ yield(void)
 
   acquire(&p->lock);
   p->state = RUNNABLE;
-  insert_proc_to_list(c->runnable_list, p); // insert_proc_to_list(c->runnable_list, p); // TODO: check
+  printf("insert yield runnable %d\n", p->index); //delete
+  insert_proc_to_list(&(c->runnable_list), p); // TODO: check
   sched();
   release(&p->lock);
 }
@@ -633,7 +642,8 @@ sleep(void *chan, struct spinlock *lk)
   // Go to sleep.
   p->chan = chan;
   p->state = SLEEPING;
-  insert_proc_to_list(sleeping_list, p);
+  printf("insert sleep sleep %d\n", p->index); //delete
+  insert_proc_to_list(&sleeping_list, p);
 
   sched();
 
@@ -652,23 +662,26 @@ wakeup(void *chan)
 {
   struct proc *p;
   struct cpu *c;
-  int curr = sleeping_list->head;
-  int next;
+  //int curr = sleeping_list.head;
+  //int next;
 
-  while(curr > -1) {
-    p = &proc[curr];
-    next = p->next_index;
+  for(p = proc; p < &proc[NPROC]; p++) {
+  //while(curr > -1) {
+    //p = &proc[curr];
+    //next = p->next_index;
     if(p != myproc()){
       acquire(&p->lock);
       if(p->state == SLEEPING && p->chan == chan) {
         c = &cpus[p->last_cpu];
         p->state = RUNNABLE;
-        remove_proc_to_list(sleeping_list, p);
-        insert_proc_to_list(c->runnable_list, p);
+        printf("remove wakeup sleep %d\n", p->index); //delete
+        remove_proc_to_list(&sleeping_list, p);
+        printf("insert wakeup runnable %d\n", p->index); //delete
+        insert_proc_to_list(&(c->runnable_list), p);
       }
       release(&p->lock);
     }
-    curr = next;
+    //curr = next;
   }
 }
 
