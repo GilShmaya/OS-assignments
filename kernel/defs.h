@@ -114,6 +114,7 @@ void            remove_proc_to_list(struct _list*, struct proc*);
 int             set_cpu(int);
 int             get_cpu(void);
 int             cpu_process_count(int);
+void             increment_cpu_process_count(struct cpu*);
              
 
 // swtch.S

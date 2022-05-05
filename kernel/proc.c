@@ -66,10 +66,10 @@ initialize_proc(struct proc *p){
   proc->prev_index = -1;
 }
 
-/*int
+int
 isEmpty(struct _list *lst){
   return lst->head == -1;
-}*/
+}
 
 void 
 insert_proc_to_list(struct _list *lst, struct proc *p){
@@ -433,11 +433,11 @@ fork(void)
     np->last_cpu = min_cpu_process_count(); // case BLNCFLG=ON -> cpu = CPU with the lowest counter value
   #endif
   
-  struct cpu &c = cpus[np->last_cpu];
+  struct cpu *c = &cpus[np->last_cpu];
   increment_cpu_process_count(c);
 
   printf("insert fork runnable %d\n", np->index); //delete
-  insert_proc_to_list(&(c.runnable_list), np); // admit the new process to the father’s current CPU’s ready list
+  insert_proc_to_list(&(c->runnable_list), np); // admit the new process to the father’s current CPU’s ready list
   release(&np->lock);
 
   return pid;
@@ -597,11 +597,10 @@ scheduler(void)
     }
     else{
       #ifdef ON
-        steal_process(c);
+      //  steal_process(c);
       #endif
     }
   }
-}
 }
 
 // Switch to scheduler.  Must hold only p->lock
@@ -848,9 +847,9 @@ int
 min_cpu(void){
   struct cpu *c, *min_cpu;
 // should add an if to insure numberOfCpus>0
-  mincpu = cpus;
+  min_cpu = cpus;
   for(c = cpus + 1; c < &cpus[NCPU] && c != NULL ; c++){
-    if (c->proc_counter < min_cpu->proc_counter)
+    if (c->cpu_process_count < min_cpu->cpu_process_count)
         min_cpu = c;
   }
   return min_cpu->cpu_id;   
@@ -859,7 +858,7 @@ min_cpu(void){
 int
 cpu_process_count(int cpu_num){
   if (cpu_num > 0 && cpu_num < NCPU && &cpus[cpu_num] != NULL) 
-    return cpus[cpu_num]->proc_counter;
+    return cpus[cpu_num].cpu_process_count;
   return -1;
 }
 
@@ -868,9 +867,10 @@ increment_cpu_process_count(struct cpu *c){
   uint64 curr_count;
   do{
     curr_count = c->cpu_process_count;
-  }while(cas(&(c->cpu_process_count), curr_count, curr_count+1))
+  }while(cas(&(c->cpu_process_count), curr_count, curr_count+1));
 }
 
+/*
 void
 steal_process(struct cpu *curr_c){ 
   struct cpu *c;
@@ -889,3 +889,4 @@ steal_process(struct cpu *curr_c){
   p->last_cpu = c->cpu_id;
   increment_cpu_process_count(c);
 }
+*/

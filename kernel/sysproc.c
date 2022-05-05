@@ -119,5 +119,5 @@ sys_cpu_process_count(void)
 
   if(argint(0, &cpu_id) < 0)
     return -1;
-  return cpu_process_count()
+  return cpu_process_count(cpu_id);
 }
