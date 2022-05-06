@@ -46,19 +46,19 @@ print_list(struct _list lst){
 
 
 void initialize_list(struct _list *lst){
-  /*
-  int curr_tail = lst->tail;
-  if(cas(&lst->tail, curr_tail, -1)){ // if lst is empty
-    lst->head = p-> index; */
   lst->head = -1;
   lst->tail = -1;
 }
 
-void initialize_runnable_lists(void){
+void initialize_lists(void){
   struct cpu *c;
   for(c = cpus; c < &cpus[NCPU] && c != NULL ; c++){
     c->runnable_list = (struct _list){-1, -1};
+    initlock(&c->runnable_list.lock, "runnable_list_lock");
   }
+  initlock(&unused_list.lock, "unused_list_lock");
+  initlock(&sleeping_list.lock, "sleeping_list_lock");
+  initlock(&zombie_list.lock, "zombie_list_lock");
 }
 
 void
@@ -124,21 +124,35 @@ remove_proc_to_list(struct _list *lst, struct proc *p){
 }
 */
 
+void set_prev_proc(struct proc *p, int value){
+  acquire(&p->lock);
+  p->prev_index = value; 
+  release(&p->lock);
+}
+
+void set_next_proc(struct proc *p, int value){
+  acquire(&p->lock);
+  p->next_index = value; 
+  release(&p->lock);
+}
+
 void 
 insert_proc_to_list(struct _list *lst, struct proc *p){
   printf("before insert: \n");
   print_list(*lst); // delete
 
+  acquire(&lst->lock);
   if(isEmpty(lst)){
     lst->head = p->index;
     lst->tail = p-> index;
   }
   else {
     struct proc *p_tail = &proc[lst->tail];
-    p_tail->next_index = p->index; // update next proc of the curr tail
+    set_next_proc(p_tail, p->index);  // update next proc of the curr tail
     p->prev_index = p_tail->index; // update the prev proc of the new proc
     lst->tail = p->index;          // update tail
   }
+  release(&lst->lock);
   printf("after insert: \n");
   print_list(*lst); // delete
 }
@@ -147,20 +161,22 @@ void
 remove_proc_to_list(struct _list *lst, struct proc *p){
   printf("before insert: \n");
   print_list(*lst); // delete
+  acquire(&lst->lock);
   if(lst->head == p->index && lst->tail == p->index) // p is the only proc in the list
     initialize_list(lst);
   else if(lst->head == p->index) {  // p is the head of the list
     lst->head = p->next_index;
-    proc[lst->head].prev_index = -1;
+    set_prev_proc(&proc[lst->head], -1);
   }
   else if(lst->tail == p->index) { // p is the tail of the list
     lst->tail = p->prev_index;
-    proc[lst->tail].next_index = -1;
-     }
+    set_next_proc(&proc[lst->tail], -1);
+    }
   else {
-    proc[p->prev_index].next_index = p->next_index;
-    proc[p->next_index].prev_index = p->prev_index;
+    set_next_proc(&proc[p->prev_index], p->next_index);
+    set_prev_proc(&proc[p->next_index], p->prev_index);
   }
+  release(&lst->lock);
   initialize_proc(p);
 
   printf("after remove: \n");
@@ -190,7 +206,7 @@ procinit(void)
 {
   struct proc *p;
 
-  initialize_runnable_lists();
+  initialize_lists();
 
   initlock(&pid_lock, "nextpid");
   initlock(&wait_lock, "wait_lock");

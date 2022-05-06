@@ -8,7 +8,7 @@
 #include "kernel/memlayout.h"
 #include "kernel/riscv.h"
 
-void cas_test(int size, int interval, char* env_name) {
+void test_cas(int size, int interval, char* env_name) {
     int n_forks = 2;
     int pid;
     for (int i = 0; i < n_forks; i++) {
@@ -41,8 +41,8 @@ void env_freq() {
 
 int
 main(int argc, char *argv[]){
-    //test_cas(10e6, 10e6, "env_large");
-    env();
+    test_cas(10e6, 10e6, "env_large");
+    //env();
     //test_list(10e6, 10e6, "env_large");
     exit(0);
 
