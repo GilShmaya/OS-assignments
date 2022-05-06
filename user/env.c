@@ -23,7 +23,7 @@ void cas_test(int size, int interval, char* env_name) {
 }
 
 void env() {
-    int n_forks = 2;
+    int n_forks = 20;
     for (int i = 0; i < n_forks; i++) {
        fork();
     }
