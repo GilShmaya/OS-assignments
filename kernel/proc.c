@@ -69,58 +69,6 @@ isEmpty(struct _list *lst){
   return lst->head == -1;
 }
 
-/*
-void 
-insert_proc_to_list(struct _list *lst, struct proc *p){
-  printf("before insert: \n");
-  print_list(*lst); // delete
-
-  if(cas(&lst->tail, -1, p->index) == 0){ // if lst is empty
-    lst->head = p->index; // the only option is to insert another process and change tail, changing head is safe now
-  }
-  else {
-    int curr_tail;
-    struct proc *p_tail;
-    do {
-      p_tail = &proc[lst->tail];
-      curr_tail = lst->tail;
-    } while(cas(&lst->tail, curr_tail, p->index)); // try to update tail
-    p_tail->next_index = p->index; // update next proc of the curr tail
-    p->prev_index = curr_tail; // update the prev proc of the new proc
-  }
-  printf("after insert: \n");
-  print_list(*lst); // delete
-}
-
-
-void 
-remove_proc_to_list(struct _list *lst, struct proc *p){
-  printf("before remove: \n");
-  print_list(*lst); // delete
-  if(cas(&lst->tail, p->index, p->prev_index) == 0 && p->prev_index != -1){ // case: p is the list's tail
-    struct proc *p_new_tail = &proc[lst->tail];
-    int curr_tail_next = p_new_tail->next_index;
-    cas(&p_new_tail->next_index, curr_tail_next, -1);
-  }
-  if(cas(&lst->head, p->index, p->next_index) == 0 && p->next_index != -1){ // case: p is the list's head
-    struct proc *p_new_head = &proc[lst->head];
-    int curr_head_prev = p_new_head->prev_index;
-    cas(&p_new_head->prev_index, curr_head_prev, -1);
-  }
-  if(p->prev_index != -1){ // case: p is in the middle
-    int prev_next_index = proc[p->prev_index].next_index;
-    cas(&proc[p->prev_index].next_index, prev_next_index, p->next_index);
-  }
-  if(p->next_index != -1){
-    int next_prev_index = proc[p->next_index].prev_index;
-    cas(&proc[p->next_index].prev_index, next_prev_index, p->prev_index);
-  }
-  initialize_proc(p);
-
-  printf("after remove: \n");
-  print_list(*lst); // delete
-}
-*/
 int 
 get_head(struct _list *lst){
   acquire(&lst->head_lock); 

@@ -20,7 +20,6 @@ struct context {
 
 struct _list {
   int head;                   // the index in proc array of the first proc in the list
-  int tail;                   // the index in proc array of the last proc in the list
   struct spinlock head_lock;
 };
 
