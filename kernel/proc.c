@@ -140,7 +140,7 @@ void
 insert_proc_to_list(struct _list *lst, struct proc *p){
   printf("before insert: \n");
   print_list(*lst); // delete
-
+  
   acquire(&lst->lock);
   if(isEmpty(lst)){
     lst->head = p->index;
@@ -272,7 +272,7 @@ allocproc(void)
 {
   struct proc *p;
 
-  //for(p = proc; p < &proc[NPROC]; p++) { delete
+  //for(p = proc; p < &proc[NPROC]; p++) { 
   while(!isEmpty(&unused_list)){
     p = &proc[unused_list.head];
     acquire(&p->lock);
@@ -634,33 +634,36 @@ scheduler(void)
   for(;;){
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
-
+    
     //for(p = proc; p < &proc[NPROC]; p++) { // TODO: remove?
-     //if(p->state == RUNNABLE) { // TODO: remove?
-    if(!isEmpty(&(c->runnable_list))) { // check whether there is a ready process in the cpu
+   //if(p->state == RUNNABLE) { // TODO: remove?
+    while(!isEmpty(&(c->runnable_list))){ // check whether there is a ready process in the cpu
       p =  &proc[c->runnable_list.head]; //  pick the first process from the correct CPU’s list.
+      if(p->state == RUNNABLE) {
+        acquire(&p->lock);
+        if(p->state == RUNNABLE) {  
+          // Switch to chosen process.  It is the process's job
+          // to release its lock and then reacquire it
+          // before jumping back to us.
+          printf("remove sched runnable %d\n", p->index); //delete
+          remove_proc_to_list(&(c->runnable_list), p);
+          p->state = RUNNING;
+          c->proc = p;
+          p->last_cpu = c->cpu_id;
 
-      acquire(&p->lock);
-      if(p->state == RUNNABLE) {  
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
-        printf("remove sched runnable %d\n", p->index); //delete
-        remove_proc_to_list(&(c->runnable_list), p);
-        p->state = RUNNING;
-        c->proc = p;
-        p->last_cpu = c->cpu_id;
+          printf("before swtch%d\n", p->index); //delete
+          swtch(&c->context, &p->context);
+          printf("after swtch%d\n", p->index); //delete
 
-        printf("before swtch%d\n", p->index); //delete
-        swtch(&c->context, &p->context);
-        printf("after swtch%d\n", p->index); //delete
-
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
+          // Process is done running for now.
+          // It should have changed its p->state before coming back.
+          c->proc = 0;
+        }
+        release(&p->lock);
       }
-      release(&p->lock);
-    }
+    } 
+    //}
+    //}
   /*  else{
       #ifdef ON
       //  steal_process(c);
@@ -798,6 +801,8 @@ wakeup(void *chan)
 
         printf("insert wakeup runnable %d\n", p->index); //delete
         insert_proc_to_list(&(c->runnable_list), p);
+        printf("after wakeup\n"); //delete
+        printf("isempty? %d\n", isEmpty(&mycpu()->runnable_list)); //delete
       }
       release(&p->lock);
     }
