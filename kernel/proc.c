@@ -29,9 +29,9 @@ extern uint cas(volatile void *addr, int expected, int newval); // cas.S
 // must be acquired before any p->lock.
 struct spinlock wait_lock;
 
-struct _list unused_list = {-1, -1};   // contains all UNUSED process entries.
-struct _list sleeping_list = {-1, -1}; // contains all SLEEPING processes.
-struct _list zombie_list = {-1, -1};   // contains all ZOMBIE processes.
+struct _list unused_list = {-1};   // contains all UNUSED process entries.
+struct _list sleeping_list = {-1}; // contains all SLEEPING processes.
+struct _list zombie_list = {-1};   // contains all ZOMBIE processes.
 
 void
 print_list(struct _list lst){
@@ -54,8 +54,12 @@ void initialize_list(struct _list *lst){
 void initialize_lists(void){
   struct cpu *c;
   for(c = cpus; c < &cpus[NCPU] && c != NULL ; c++){
-    c->runnable_list = (struct _list){-1, -1};
+    c->runnable_list = (struct _list){-1};
+    initlock(&c->runnable_list.head_lock, "cpu_runnable_list - head lock");
   }
+  initlock(&unused_list.head_lock, "unused_list - head lock");
+  initlock(&sleeping_list.head_lock, "sleeping_list - head lock");
+  initlock(&zombie_list.head_lock, "zombie_list - head lock");
 }
 
 void
@@ -152,55 +156,6 @@ remove_proc_to_list(struct _list *lst, struct proc *p){
   print_list(*lst); // delete
 }
 
-/*
-void 
-insert_proc_to_list(struct _list *lst, struct proc *p){
-  printf("before insert: \n");
-  print_list(*lst); // delete
-  
-  acquire(&lst->lock);
-  if(isEmpty(lst)){
-    lst->head = p->index;
-    lst->tail = p-> index;
-  }
-  else {
-    struct proc *p_tail = &proc[lst->tail];
-    set_next_proc(p_tail, p->index);  // update next proc of the curr tail
-    p->prev_index = p_tail->index; // update the prev proc of the new proc
-    lst->tail = p->index;          // update tail
-  }
-  release(&lst->lock);
-  printf("after insert: \n");
-  print_list(*lst); // delete
-}
-
-void 
-remove_proc_to_list(struct _list *lst, struct proc *p){
-  printf("before insert: \n");
-  print_list(*lst); // delete
-  acquire(&lst->lock);
-  if(lst->head == p->index && lst->tail == p->index) // p is the only proc in the list
-    initialize_list(lst);
-  else if(lst->head == p->index) {  // p is the head of the list
-    lst->head = p->next_index;
-    set_prev_proc(&proc[lst->head], -1);
-  }
-  else if(lst->tail == p->index) { // p is the tail of the list
-    lst->tail = p->prev_index;
-    set_next_proc(&proc[lst->tail], -1);
-    }
-  else {
-    set_next_proc(&proc[p->prev_index], p->next_index);
-    set_prev_proc(&proc[p->next_index], p->prev_index);
-  }
-  release(&lst->lock);
-  initialize_proc(p);
-
-  printf("after remove: \n");
-  print_list(*lst); // delete
-}
-*/
-
 // Allocate a page for each process's kernel stack.
 // Map it high in memory, followed by an invalid
 // guard page.
@@ -231,6 +186,7 @@ procinit(void)
   int i = 0;
   for(p = proc; p < &proc[NPROC]; p++) {
       initlock(&p->lock, "proc");
+      initlock(&p->lock, "node_lock");
       p->kstack = KSTACK((int) (p - proc));
       p->index = i;
       initialize_proc(p);
@@ -679,13 +635,9 @@ scheduler(void)
         release(&p->lock);
       }
     } 
-    //}
-    //}
-  /*  else{
-      #ifdef ON
-      //  steal_process(c);
-      #endif
-    } */
+    #ifdef ON
+      steal_process(c);
+    #endif
   }
 }
 
@@ -958,9 +910,9 @@ increment_cpu_process_count(struct cpu *c){
   }while(cas(&(c->cpu_process_count), curr_count, curr_count+1));
 }
 
-/*
+
 void
-steal_process(struct cpu *curr_c){ 
+steal_process(struct cpu *curr_c){  /*
   struct cpu *c;
   struct proc *p;
   int stolen_process;
@@ -975,6 +927,5 @@ steal_process(struct cpu *curr_c){
   p = proc[stolen_process];
   insert_proc_to_list(&c->runnable_list, p);
   p->last_cpu = c->cpu_id;
-  increment_cpu_process_count(c);
+  increment_cpu_process_count(c); */
 }
-*/
