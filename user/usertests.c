@@ -2317,8 +2317,11 @@ sbrkfail(char *s)
     exit(1);
   }
   wait(&xstatus);
-  if(xstatus != -1 && xstatus != 2)
+  if(xstatus != -1 && xstatus != 2){
+    printf("done sbrkfail");
     exit(1);
+  }
+  printf("done sbrkfail");
 }
 
   
@@ -2833,7 +2836,7 @@ main(int argc, char *argv[])
     {reparent2, "reparent2"},
     {pgbug, "pgbug" },
     {sbrkbugs, "sbrkbugs" },
-    // {badwrite, "badwrite" },
+    {badwrite, "badwrite" },
     {badarg, "badarg" },
     {reparent, "reparent" },
     {twochildren, "twochildren"},
