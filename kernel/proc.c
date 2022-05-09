@@ -91,8 +91,8 @@ void set_next_proc(struct proc *p, int value){
 
 void 
 insert_proc_to_list(struct _list *lst, struct proc *p){
-  printf("before insert: \n");
-  print_list(*lst); // delete
+  //printf("before insert: \n");
+  //print_list(*lst); // delete
 
   acquire(&lst->head_lock);
   if(isEmpty(lst)){
@@ -112,14 +112,14 @@ insert_proc_to_list(struct _list *lst, struct proc *p){
     set_prev_proc(p, curr->index); // update the prev proc of the new proc
     release(&curr->node_lock);
   }
-  printf("after insert: \n");
-  print_list(*lst); // delete
+  //printf("after insert: \n");
+  //print_list(*lst); // delete
 }
 
 void 
 remove_proc_to_list(struct _list *lst, struct proc *p){
-  printf("before remove: \n");
-  print_list(*lst); // delete
+  //printf("before remove: \n");
+  //print_list(*lst); // delete
 
   acquire(&lst->head_lock);
   if(isEmpty(lst)){
@@ -152,8 +152,8 @@ remove_proc_to_list(struct _list *lst, struct proc *p){
   }
   initialize_proc(p);
 
-  printf("after remove: \n");
-  print_list(*lst); // delete
+  //printf("after remove: \n");
+  //print_list(*lst); // delete
 }
 
 // Allocate a page for each process's kernel stack.
@@ -190,7 +190,7 @@ procinit(void)
       p->kstack = KSTACK((int) (p - proc));
       p->index = i;
       initialize_proc(p);
-      printf("insert procinit unused %d\n", p->index); //delete
+      //printf("insert procinit unused %d\n", p->index); //delete
       insert_proc_to_list(&unused_list, p); // procinit to admit all UNUSED process entries
       i++;
   }
@@ -250,7 +250,7 @@ allocproc(void)
     p = &proc[get_head(&unused_list)];
     acquire(&p->lock);
     if(p->state == UNUSED) {
-      printf("remove allocproc unused %d\n", p->index); //delete
+      //printf("remove allocproc unused %d\n", p->index); //delete
       remove_proc_to_list(&unused_list, p); // choose the new process entry to initialize from the UNUSED entry list.
       goto found;
     } else {
@@ -308,9 +308,9 @@ freeproc(struct proc *p)
   p->xstate = 0;
   p->state = UNUSED;
 
-  printf("remove free proc zombie %d\n", p->index); //delete
+  //printf("remove free proc zombie %d\n", p->index); //delete
   remove_proc_to_list(&zombie_list, p); // remove the freed process from the ZOMBIE list
-  printf("insert free proc unused %d\n", p->index); //delete
+  //printf("insert free proc unused %d\n", p->index); //delete
   insert_proc_to_list(&unused_list, p); // admit its entry to the UNUSED entry list.
 }
 
@@ -391,7 +391,7 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
-  printf("insert userinit runnable %d\n", p->index); //delete
+  //printf("insert userinit runnable %d\n", p->index); //delete
   insert_proc_to_list(&(cpus[0].runnable_list), p); // admit the init process (the first process in the OS) to the first CPU’s list.
 
   release(&p->lock);
@@ -472,7 +472,7 @@ fork(void)
   struct cpu *c = &cpus[np->last_cpu];
   increment_cpu_process_count(c);
 
-  printf("insert fork runnable %d\n", np->index); //delete
+  //printf("insert fork runnable %d\n", np->index); //delete
   insert_proc_to_list(&(c->runnable_list), np); // admit the new process to the father’s current CPU’s ready list
   release(&np->lock);
 
@@ -531,7 +531,7 @@ exit(int status)
 
   p->xstate = status;
   p->state = ZOMBIE;
-  printf("insert exit zombie %d\n", p->index); //delete
+  //printf("insert exit zombie %d\n", p->index); //delete
   insert_proc_to_list(&zombie_list, p); // exit to admit the exiting process to the ZOMBIE list
 
   release(&wait_lock);
@@ -618,15 +618,15 @@ scheduler(void)
           // Switch to chosen process.  It is the process's job
           // to release its lock and then reacquire it
           // before jumping back to us.
-          printf("remove sched runnable %d\n", p->index); //delete
+          //printf("remove sched runnable %d\n", p->index); //delete
           remove_proc_to_list(&(c->runnable_list), p);
           p->state = RUNNING;
           c->proc = p;
           p->last_cpu = c->cpu_id;
 
-          printf("before swtch%d\n", p->index); //delete
+          //printf("before swtch%d\n", p->index); //delete
           swtch(&c->context, &p->context);
-          printf("after swtch%d\n", p->index); //delete
+          //printf("after swtch%d\n", p->index); //delete
 
           // Process is done running for now.
           // It should have changed its p->state before coming back.
@@ -666,9 +666,9 @@ sched(void)
   intena = mycpu()->intena;
   //acquire(&p->lock); // delete
   //printf("before sched swtch %d status %s\n", p->index, p->state); //delete
-  printf("before sched swtch status \n"); //delete
+  //printf("before sched swtch status \n"); //delete
   swtch(&p->context, &mycpu()->context);
-  printf("after sched swtch  status \n"); //delete
+  //printf("after sched swtch  status \n"); //delete
   //release(&p->lock); // delete
   mycpu()->intena = intena;
 }
@@ -682,7 +682,7 @@ yield(void)
 
   acquire(&p->lock);
   p->state = RUNNABLE;
-  printf("insert yield runnable %d\n", p->index); //delete
+  //printf("insert yield runnable %d\n", p->index); //delete
   insert_proc_to_list(&(c->runnable_list), p); // TODO: check
   sched();
   release(&p->lock);
@@ -729,7 +729,7 @@ sleep(void *chan, struct spinlock *lk)
   // Go to sleep.
   p->chan = chan;
   p->state = SLEEPING;
-  printf("insert sleep sleep %d\n", p->index); //delete
+  //printf("insert sleep sleep %d\n", p->index); //delete
   insert_proc_to_list(&sleeping_list, p);
 
   sched();
@@ -758,7 +758,7 @@ wakeup(void *chan)
     if(p != myproc()){
       acquire(&p->lock);
       if(p->state == SLEEPING && p->chan == chan) {
-        printf("remove wakeup sleep %d\n", p->index); //delete
+       // printf("remove wakeup sleep %d\n", p->index); //delete
         remove_proc_to_list(&sleeping_list, p);
         p->state = RUNNABLE;
 
@@ -768,10 +768,10 @@ wakeup(void *chan)
         c = &cpus[p->last_cpu];
         increment_cpu_process_count(c);
 
-        printf("insert wakeup runnable %d\n", p->index); //delete
+      //  printf("insert wakeup runnable %d\n", p->index); //delete
         insert_proc_to_list(&(c->runnable_list), p);
-        printf("after wakeup\n"); //delete
-        printf("isempty? %d\n", isEmpty(&mycpu()->runnable_list)); //delete
+       // printf("after wakeup\n"); //delete
+       // printf("isempty? %d\n", isEmpty(&mycpu()->runnable_list)); //delete
       }
       release(&p->lock);
     }
