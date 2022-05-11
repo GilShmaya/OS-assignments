@@ -128,8 +128,10 @@ remove_proc_to_list(struct _list *lst, struct proc *p){
 
   if(lst->head == p->index){ // the required proc is the head
     lst->head = p->next_index;
-    if(p->next_index != -1)
+    if(p->next_index != -1){
       set_prev_proc(&proc[p->next_index], -1);
+      set_next_proc(p, -1);
+    }
     release(&lst->head_lock);
   }
   else{
@@ -146,11 +148,12 @@ remove_proc_to_list(struct _list *lst, struct proc *p){
     }
     acquire(&p->node_lock); // curr is p->prev
     set_next_proc(curr, p->next_index);
-    set_prev_proc(&proc[p->next_index], curr->index);
-    release(&curr->node_lock);
+    if(p->next_index != -1)
+      set_prev_proc(&proc[p->next_index], curr->index);
+    initialize_proc(p);
     release(&p->node_lock);
+    release(&curr->node_lock);
   }
-  initialize_proc(p);
 
   //printf("after remove: \n");
   //print_list(*lst); // delete
