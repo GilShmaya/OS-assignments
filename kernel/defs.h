@@ -109,12 +109,16 @@ void            initialize_list(struct _list*);
 void            initialize_runnable_lists(void);
 void            initialize_proc(struct proc*);
 int             isEmpty(struct _list*);
-void            insert_proc_to_list(struct _list*, struct proc*);
-void            remove_proc_to_list(struct _list*, struct proc*);
+int             insert_proc_to_list(struct _list*, struct proc*);
+int             remove_head_from_list(struct _list*);
+int             remove_proc_to_list(struct _list*, struct proc*);
 int             set_cpu(int);
 int             get_cpu(void);
 int             cpu_process_count(int);
-void             increment_cpu_process_count(struct cpu*);
+void            increment_cpu_process_count(struct cpu*);
+int             min_cpu_process_count(void);
+void            steal_process(struct cpu*);
+
              
 
 // swtch.S
