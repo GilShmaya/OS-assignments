@@ -94,11 +94,10 @@ void set_next_proc(struct proc *p, int value){
 
 int 
 insert_proc_to_list(struct _list *lst, struct proc *p){
-  //printf("before insert: \n");
-  //print_list(*lst); // delete
   acquire(&lst->head_lock);
   if(isEmpty(lst)){
     lst->head = p->index;
+    initialize_proc(p);
     release(&lst->head_lock);
   }
   else{ 
@@ -114,38 +113,29 @@ insert_proc_to_list(struct _list *lst, struct proc *p){
     set_prev_proc(p, curr->index); // update the prev proc of the new proc
     release(&curr->node_lock);
   }
-  //printf("after insert: \n");
-  //print_list(*lst); // delete
   return 1; 
 }
 
 int 
 remove_head_from_list(struct _list *lst){
-  printf("before remove head: \n");
-  //print_list(*lst); // delete
-
   if(isEmpty(lst)){
     printf("Fails in removing the head from the list: the list is empty\n");
-    release(&lst->head_lock);
     return 0;
   }
   struct proc *p_head = &proc[lst->head];
+  acquire(&p_head->node_lock);
   lst->head = p_head->next_index;
-  if(p_head->next_index != -1){
+  if(lst->head != -1){
     set_prev_proc(&proc[p_head->next_index], -1);
   }
-  set_next_proc(p_head, -1);
-  release(&lst->head_lock);
-  //printf("after remove head: \n");
-  //print_list(*lst); // delete
+  initialize_proc(p_head);
+  release(&p_head->node_lock);
+
   return 1;
 }
 
 int
 remove_proc_to_list(struct _list *lst, struct proc *p){
-  //printf("before remove: \n");
-  //print_list(*lst); // delete
-
   acquire(&lst->head_lock);
   if(isEmpty(lst)){
     printf("Fails in removing the process from the list: the list is empty\n");
@@ -155,6 +145,7 @@ remove_proc_to_list(struct _list *lst, struct proc *p){
 
   if(lst->head == p->index){ // the required proc is the head
    remove_head_from_list(lst);
+   release(&lst->head_lock);
   }
   else{
     struct proc *curr = &proc[lst->head];
@@ -178,8 +169,7 @@ remove_proc_to_list(struct _list *lst, struct proc *p){
     release(&p->node_lock);
     release(&curr->node_lock);
   }
-  //printf("after remove: \n");
-  //print_list(*lst); // delete
+
   return 1;
 }
 
@@ -217,7 +207,6 @@ procinit(void)
       p->kstack = KSTACK((int) (p - proc));
       p->index = i;
       initialize_proc(p);
-      printf("insert procinit unused %d\n", p->index); //delete
       insert_proc_to_list(&unused_list, p); // procinit to admit all UNUSED process entries
       i++;
   }
@@ -277,7 +266,6 @@ allocproc(void)
     p = &proc[get_head(&unused_list)];
     acquire(&p->lock);
     if(p->state == UNUSED) {
-      printf("remove allocpric unused %d\n", p->index); //delete
       remove_proc_to_list(&unused_list, p); // choose the new process entry to initialize from the UNUSED entry list.
       goto found;
     } else {
@@ -335,9 +323,7 @@ freeproc(struct proc *p)
   p->xstate = 0;
   p->state = UNUSED;
 
-  printf("remove freeproc zombie %d\n", p->index); //delete
   remove_proc_to_list(&zombie_list, p); // remove the freed process from the ZOMBIE list
-  printf("insert freeproc unused %d\n", p->index); //delete
   insert_proc_to_list(&unused_list, p); // admit its entry to the UNUSED entry list.
 }
 
@@ -419,7 +405,6 @@ userinit(void)
 
   p->state = RUNNABLE;
   
-  printf("insert userinit runnable %d\n", p->index); //delete
   insert_proc_to_list(&(cpus[0].runnable_list), p); // admit the init process (the first process in the OS) to the first CPU’s list.
 
   release(&p->lock);
@@ -501,7 +486,6 @@ fork(void)
   struct cpu *c = &cpus[np->last_cpu];
   increment_cpu_process_count(c);
 
-  printf("insert fork runnable %d\n", p->index); //delete
   insert_proc_to_list(&(c->runnable_list), np); // admit the new process to the father’s current CPU’s ready list
   release(&np->lock);
 
@@ -561,7 +545,6 @@ exit(int status)
   p->xstate = status;
   p->state = ZOMBIE;
   
-  printf("insert exit zombie %d\n", p->index); //delete
   insert_proc_to_list(&zombie_list, p); // exit to admit the exiting process to the ZOMBIE list
 
   release(&wait_lock);
@@ -646,7 +629,6 @@ scheduler(void)
           // Switch to chosen process.  It is the process's job
           // to release its lock and then reacquire it
           // before jumping back to us.
-          printf("remove sched runnable %d\n", p->index); //delete
           remove_proc_to_list(&(c->runnable_list), p);
           p->state = RUNNING;
           c->proc = p;
@@ -662,9 +644,9 @@ scheduler(void)
       }
     } 
     #ifdef ON
-      if(CPUS > 1){
-        steal_process(c);
-      }
+     // if(CPUS > 1){
+     //   steal_process(c);
+     // }
     #endif
   }
 }
@@ -707,8 +689,7 @@ yield(void)
 
   acquire(&p->lock);
   p->state = RUNNABLE;
-  printf("insert yield runnable %d\n", p->index); //delete
-  insert_proc_to_list(&(c->runnable_list), p); // TODO: check
+  insert_proc_to_list(&(c->runnable_list), p);
   sched();
   release(&p->lock);
 }
@@ -749,7 +730,6 @@ sleep(void *chan, struct spinlock *lk)
   // so it's okay to release lk.
 
   acquire(&p->lock);  //DOC: sleeplock1
-  printf("insert sleep sleep %d\n", p->index); //delete
   insert_proc_to_list(&sleeping_list, p);
   release(lk);
 
@@ -782,18 +762,16 @@ wakeup(void *chan)
     if(p != myproc()){
       acquire(&p->lock);
       if(p->state == SLEEPING && p->chan == chan) {
-        printf("remove wakeup sleep %d\n", p->index); //delete
         remove_proc_to_list(&sleeping_list, p);
         p->state = RUNNABLE;
 
         #ifdef ON
           if(CPUS > 1)
-            p->last_cpu = min_cpu_process_count(); // case BLNCFLG=ON -> cpu = CPU with the lowest counter value
+          p->last_cpu = min_cpu_process_count(); // case BLNCFLG=ON -> cpu = CPU with the lowest counter value
         #endif
         c = &cpus[p->last_cpu];
         increment_cpu_process_count(c);
 
-        printf("insert wakeup runnable %d\n", p->index); //delete
         insert_proc_to_list(&(c->runnable_list), p);
       }
       release(&p->lock);
@@ -816,9 +794,7 @@ kill(int pid)
       if(p->state == SLEEPING){
         // Wake process from sleep().
         p->state = RUNNABLE;
-        printf("remove kill sleep %d\n", p->index); //delete
         remove_proc_to_list(&sleeping_list, p);
-        printf("insert kill runnable %d\n", p->index); //delete
         insert_proc_to_list(&cpus[p->last_cpu].runnable_list, p);
       }
       release(&p->lock);
@@ -944,28 +920,23 @@ steal_process(struct cpu *curr_c){
   int stolen_process;
   int succeed = 0;
   for(c = cpus; !succeed && c < &cpus[NCPU] && c != NULL && c->cpu_id < CPUS ; c++){
-      if(c != curr_c){
+      if(c->cpu_id != curr_c->cpu_id){
         lst = &c->runnable_list;
         acquire(&lst->head_lock);
         if(!isEmpty(lst)){ 
           stolen_process = lst->head;
           p = &proc[stolen_process];
           acquire(&p->lock);
-          printf("remove steal runnable %d\n", p->index); //delete
-          succeed = remove_head_from_list(lst);
+          if(!isEmpty(lst) && lst->head == stolen_process){ // p is still the head
+            remove_head_from_list(lst);
+            insert_proc_to_list(&curr_c->runnable_list, p);
+            p->last_cpu = curr_c->cpu_id;
+            increment_cpu_process_count(curr_c); 
+            succeed = 1;
+          }
           release(&p->lock);
         }
-        else{
-          release(&lst->head_lock);
-        }
+        release(&lst->head_lock);
       }
-  }
-  if(succeed){
-    acquire(&p->lock);
-    printf("insert steal runnable %d\n", p->index); //delete
-    insert_proc_to_list(&curr_c->runnable_list, p);
-    p->last_cpu = curr_c->cpu_id;
-    increment_cpu_process_count(curr_c); 
-    release(&p->lock);
   }
 }
