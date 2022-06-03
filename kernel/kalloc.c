@@ -9,6 +9,8 @@
 #include "riscv.h"
 #include "defs.h"
 
+int references[NUM_PYS_PAGES]; //maintain the references array.
+
 void freerange(void *pa_start, void *pa_end);
 
 extern char end[]; // first address after kernel.
@@ -27,6 +29,7 @@ void
 kinit()
 {
   initlock(&kmem.lock, "kmem");
+  memset(references, 0, sizeof(int)*NUM_PYS_PAGES);
   freerange(end, (void*)PHYSTOP);
 }
 
@@ -50,6 +53,11 @@ kfree(void *pa)
 
   if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
     panic("kfree");
+
+  if(decrease_reference((uint64)pa) > 0) // check if there are still references to the page after removing one. Continue if there are.
+    return;
+
+  references[get_reference_index(pa)] = 0; // initialize references of the page address
 
   // Fill with junk to catch dangling refs.
   memset(pa, 1, PGSIZE);
@@ -78,5 +86,35 @@ kalloc(void)
 
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
+
+  if(r)
+    increase_reference(r); // references[index of r] = 1
+
   return (void*)r;
+}
+
+inline
+uint64
+get_reference_index(uint64 pa){
+  return (pa - KERNBASE) / PGSIZE;
+}
+
+int
+decrease_reference(uint64 pa)
+{
+  int reference;
+  do {
+    reference = references[get_reference_index(pa)];
+  } while(cas(&references[get_reference_index(pa)], reference, reference - 1));
+  return reference - 1;
+}
+
+int
+increase_reference(uint64 pa)
+{
+  int reference;
+  do {
+    reference = references[get_reference_index(pa)];
+  } while(cas(&references[get_reference_index(pa)], reference, reference + 1));
+  return reference + 1;
 }
