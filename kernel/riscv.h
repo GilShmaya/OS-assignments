@@ -364,3 +364,6 @@ sfence_vma()
 
 typedef uint64 pte_t;
 typedef uint64 *pagetable_t; // 512 PTEs
+
+#define PTE_COW (1L << 9) // copy-on-write
+#define NUM_PYS_PAGES ((PHYSTOP-KERNBASE) / PGSIZE) // The number of the physical pages that can be dynamically alloacted
