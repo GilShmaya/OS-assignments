@@ -93,7 +93,6 @@ kalloc(void)
   return (void*)r;
 }
 
-inline
 uint64
 get_reference_index(uint64 pa){
   return (pa - KERNBASE) / PGSIZE;
