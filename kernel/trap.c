@@ -65,6 +65,11 @@ usertrap(void)
     intr_on();
 
     syscall();
+  } else if (r_scause() == 13 || r_scause() == 15) { // user trap in the case of a page fault
+    uint64 va = r_stval(); // Supervisor Trap Value
+    if (va >= p->sz || cow(p->pagetable, va) != 0) { // check if the va is higher than the size of memory or cow failed. kill in case it is
+      p->killed = 1;
+    }
   } else if((which_dev = devintr()) != 0){
     // ok
   } else {
@@ -218,3 +223,38 @@ devintr()
   }
 }
 
+// handle the cow exception interrupt.
+// va is the virtual address
+// return -1 if va is invalid
+int
+cow(pagetable_t pagetable, uint64 va)
+{
+  pte_t *pte;
+  char *pa_num;
+
+  va = PGROUNDDOWN(va); // normelize the virtual address page
+
+  if(va >= MAXVA) // check if va is invalid
+    return -1;
+
+  pte = walk(pagetable, va, 0); // walk returns the address of the pte in the page table of the virtual address
+  if(pte == 0)
+    return -1;
+
+  if ((*pte & PTE_V) == 0) // check if the bit of the valid flag is on (0)
+    return -1;
+
+  if ((*pte & PTE_COW) == 0) // check if the bit of the copy on write flag is on (9).
+    return 1;
+
+  if ((pa_num = kalloc()) != 0) { // Allocate one 4096-byte page of physical memory. pa_num is a pointer that the kernel can use.
+    uint64 pa = PTE2PA(*pte);
+    memmove(pa_num, (char*)pa, PGSIZE);
+    *pte = PA2PTE(pa_num) | ((PTE_FLAGS(*pte) & ~PTE_COW) | PTE_W)
+    kfree((void*)pa);
+
+    return 0;
+  } else {
+    return -1;
+  }
+}
