@@ -250,7 +250,7 @@ cow(pagetable_t pagetable, uint64 va)
   if ((pa_num = kalloc()) != 0) { // Allocate one 4096-byte page of physical memory. pa_num is a pointer that the kernel can use.
     uint64 pa = PTE2PA(*pte);
     memmove(pa_num, (char*)pa, PGSIZE);
-    *pte = PA2PTE(pa_num) | ((PTE_FLAGS(*pte) & ~PTE_COW) | PTE_W)
+    *pte = PA2PTE(pa_num) | ((PTE_FLAGS(*pte) & ~PTE_COW) | PTE_W);
     kfree((void*)pa);
 
     return 0;

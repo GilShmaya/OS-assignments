@@ -76,7 +76,7 @@ kvminithart()
 //   30..38 -- 9 bits of level-2 index.
 //   21..29 -- 9 bits of level-1 index.
 //   12..20 -- 9 bits of level-0 index.
-//    0..11 -- 12 bits of byte offset within the page.
+//    0..11 -- 12 bits of byte offset within the page
 pte_t *
 walk(pagetable_t pagetable, uint64 va, int alloc)
 {
@@ -302,23 +302,22 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 {
   pte_t *pte;
   uint64 pa, i;
-  uint flags;
-  char *mem;
 
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walk(old, i, 0)) == 0)
       panic("uvmcopy: pte should exist");
     if((*pte & PTE_V) == 0)
       panic("uvmcopy: page not present");
+
     pa = PTE2PA(*pte);
-    flags = PTE_FLAGS(*pte);
-    if((mem = kalloc()) == 0)
-      goto err;
-    memmove(mem, (char*)pa, PGSIZE);
-    if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){
-      kfree(mem);
+
+    if(*pte & PTE_W)
+      *pte = (((*pte) & (~PTE_W)) | PTE_COW); // change parent's page to be unwritable
+    
+    if(mappages(new, i, PGSIZE, (uint64)pa, (uint)PTE_FLAGS(*pte)) < 0){ // msp child's page with unwritable page
       goto err;
     }
+    increase_reference(pa);
   }
   return 0;
 
@@ -350,6 +349,10 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 
   while(len > 0){
     va0 = PGROUNDDOWN(dstva);
+
+    if(cow(pagetable, va0) < 0) // return -1 if the cow failed
+      return -1;
+
     pa0 = walkaddr(pagetable, va0);
     if(pa0 == 0)
       return -1;
