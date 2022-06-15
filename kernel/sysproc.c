@@ -95,29 +95,3 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
-
-uint64
-sys_set_cpu(void)
-{
-  int cpu_id;
-
-  if(argint(0, &cpu_id) < 0)
-    return -1;
-  return set_cpu(cpu_id);
-}
-
-uint64
-sys_get_cpu(void)
-{
-  return get_cpu();
-}
-
-uint64
-sys_cpu_process_count(void)
-{
-  int cpu_id;
-
-  if(argint(0, &cpu_id) < 0)
-    return -1;
-  return cpu_process_count(cpu_id);
-}
