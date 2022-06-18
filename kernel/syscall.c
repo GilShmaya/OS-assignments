@@ -93,6 +93,8 @@ extern uint64 sys_fstat(void);
 extern uint64 sys_getpid(void);
 extern uint64 sys_kill(void);
 extern uint64 sys_link(void);
+extern uint64 sys_symlink(void);
+extern uint64 sys_readlink(void);
 extern uint64 sys_mkdir(void);
 extern uint64 sys_mknod(void);
 extern uint64 sys_open(void);
@@ -125,6 +127,8 @@ static uint64 (*syscalls[])(void) = {
 [SYS_mknod]   sys_mknod,
 [SYS_unlink]  sys_unlink,
 [SYS_link]    sys_link,
+[SYS_SYMLINK] sys_symlink,
+[SYS_READLINK] sys_readlink,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
 };

@@ -170,11 +170,25 @@ sys_symlink(void)
 {
   const char *oldpath, *newpath;
 
-  // Fetch the nth word-sized system call argument as a null-terminated string.
+  // Fetch the nth word-sized system call argument as a null-terminated string. 
   if (argstr(0, &oldpath, MAXPATH) < 0 || argstr(1, &newpath, MAXPATH) < 0){
     return -1;
   }
   return symlink(oldpath, newpath);
+}
+
+nt
+sys_readlink(void)
+{
+  const char *pathname;
+  char *buf;
+  int bufsize;
+
+  // Fetch the nth word-sized system call argument as a null-terminated string. 
+  if (argstr(0, &pathname, MAXPATH) < 0 || argstr(1, &buf, MAXPATH) < 0 || argsint(3, &bufsize, MAXPATH) < 0){
+    return -1;
+  }
+  readlink(pathname, buf, (size_t)bufsize);
 }
 
 // Is the directory dp empty except for "." and ".." ?
@@ -266,6 +280,10 @@ create(char *path, short type, short major, short minor)
     ilock(ip);
     if(type == T_FILE && (ip->type == T_FILE || ip->type == T_DEVICE))
       return ip;
+    if(type == T_SYMLINK){
+      ip->symbolic = 1;
+      return ip;
+    }
     iunlockput(ip);
     return 0;
   }

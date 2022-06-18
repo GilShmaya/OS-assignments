@@ -661,7 +661,7 @@ skipelem(char *path, char *name)
 // path element into name, which must have room for DIRSIZ bytes.
 // Must be called inside a transaction since it calls iput().
 static struct inode*
-namex(char *path, int nameiparent, char *name)
+namex(char *path, int nameiparent, char *name, int dereference_count)
 {
   struct inode *ip, *next;
 
@@ -672,6 +672,10 @@ namex(char *path, int nameiparent, char *name)
 
   while((path = skipelem(path, name)) != 0){
     ilock(ip);
+    // avoid loops by not allow more then MAX_DEREFERENCE symbolic links.
+    if(!(ip = dereference_link(ip, &dereference_count))){
+      return 0;
+    }
     if(ip->type != T_DIR){
       iunlockput(ip);
       return 0;
@@ -699,20 +703,15 @@ struct inode*
 namei(char *path)
 {
   char name[DIRSIZ];
-  return namex(path, 0, name);
+  return namex(path, 0, name, MAX_DEREFERENCE);
 }
 
 struct inode*
 nameiparent(char *path, char *name)
 {
-  return namex(path, 1, name);
+  return namex(path, 1, name, MAX_DEREFERENCE);
 }
 
-struct inode*
-create_inode(struct inode *directory_path, char *name, short type, short major, short minor)
-{
-  struct inode inode_path = ialloc(directory_path->)
-}
 
 // Create a soft link from the oldpath to tne newpath. Return 0 upon success and -1 on failure.
 int
@@ -720,12 +719,12 @@ symlink(const char * oldpath, const char * newpath)
 {
   struct inode *ip;
 
-  begin_op();
+  begin_op(ROOTDEV);
 
   // create a new inode in type T_SYMLINK
   ip = create(newpath, T_SYMLINK, 0, 0);
   if(ip == 0){
-    end_op();
+    end_op(ROOTDEV);
     return -1;
   }
 
@@ -736,6 +735,55 @@ symlink(const char * oldpath, const char * newpath)
   iupdate(ip);
   iunlockput(ip);
   
-  end_op();
+  end_op(ROOTDEV);
   return 0;
+}
+
+int
+readlink(const char * pathname, char * buf, int bufsize)
+{
+  struct inode *ip;
+
+  // look up and return the inode for the pathname
+  if((ip = namei(pathname)) == 0){
+    return -1;
+  }
+
+  ilock(ip);
+  int output = getlink(ip, buf, bufsize);
+  iunlock(ip);
+  return output;
+}
+
+// read link to buf
+int
+getlink(struct inode *ip, char *buf, size_t size){
+  if(ip->type != T_SYMLINK){
+    iunlock(ip);
+    return -1;
+  }
+  readi(ip, buf, 0, size);
+
+  return 0;
+}
+
+struct inode*
+dereference_link(struct inode *ip, int *dereference){
+  struct inode *curr;
+  char buffer[100], name[DIRSIZ];
+
+  while(ip->type == T_SYMLINK){
+    (*dereference)--;
+    if(!(*dereference)){
+      iunlockput(curr);
+      return 0;
+    }
+    getlink(curr, buffer, curr->size);
+    iunlockput(curr);
+    if(!(curr = namex(buffer, 0, name, *dereference))){
+      return 0;
+    }
+    ilock(curr);
+  }
+  return curr;
 }
