@@ -707,3 +707,35 @@ nameiparent(char *path, char *name)
 {
   return namex(path, 1, name);
 }
+
+struct inode*
+create_inode(struct inode *directory_path, char *name, short type, short major, short minor)
+{
+  struct inode inode_path = ialloc(directory_path->)
+}
+
+// Create a soft link from the oldpath to tne newpath. Return 0 upon success and -1 on failure.
+int
+symlink(const char * oldpath, const char * newpath)
+{
+  struct inode *ip;
+
+  begin_op();
+
+  // create a new inode in type T_SYMLINK
+  ip = create(newpath, T_SYMLINK, 0, 0);
+  if(ip == 0){
+    end_op();
+    return -1;
+  }
+
+  // write len and old path to the new inode
+  writei(ip, 0, (uint64)&strlen(oldpath), 0, sizeof(int))
+  writei(ip, 0, (uint64)oldpath, sizeof(int), strlen(oldpath) + 1);
+  
+  iupdate(ip);
+  iunlockput(ip);
+  
+  end_op();
+  return 0;
+}

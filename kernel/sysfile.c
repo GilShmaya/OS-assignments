@@ -165,6 +165,18 @@ bad:
   return -1;
 }
 
+int
+sys_symlink(void)
+{
+  const char *oldpath, *newpath;
+
+  // Fetch the nth word-sized system call argument as a null-terminated string.
+  if (argstr(0, &oldpath, MAXPATH) < 0 || argstr(1, &newpath, MAXPATH) < 0){
+    return -1;
+  }
+  return symlink(oldpath, newpath);
+}
+
 // Is the directory dp empty except for "." and ".." ?
 static int
 isdirempty(struct inode *dp)
