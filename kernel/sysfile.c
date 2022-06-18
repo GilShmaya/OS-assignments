@@ -188,7 +188,7 @@ sys_readlink(void)
   if (argstr(0, &pathname, MAXPATH) < 0 || argstr(1, &buf, MAXPATH) < 0 || argsint(3, &bufsize, MAXPATH) < 0){
     return -1;
   }
-  readlink(pathname, buf, (size_t)bufsize);
+  readlink(pathname, buf, (size_t)buf);
 }
 
 // Is the directory dp empty except for "." and ".." ?
@@ -358,6 +358,39 @@ sys_open(void)
     iunlockput(ip);
     end_op();
     return -1;
+  }
+
+// symlink case 3 in assignment4
+//When a process specifies O_NOFOLLOW in the flags to open, open should open the symlink (and not follow the symbolic link)
+  if ((ip->type == T_SYMLINK) && !(omode & O_NOFOLLOW)){  
+    uint count = 0;
+    while (ip->type == T_SYMLINK && count < MAX_DEREFERENCE){
+      int len = 0;
+      
+      //Read data from inode from 0 to sizeof(int) to len
+      readi(ip, 0, (uint64)&len, 0, sizeof(int));
+
+      if(len > MAXPATH)
+        panic("open:corrupted symlink inode");
+      
+      //Read data from inode from sizeof(int) to len +1 to path
+      readi(ip, 0,(uint64)path, sizeof(int), len + 1);
+      iunlockput(ip);
+
+      if((ip = namei(path)) == 0){
+        endop();
+        return -1;
+      }
+      ilock(ip);
+      count++;
+    }
+
+    //exceeded the number of sybolic links - in order to prevent a loop
+    if (count >= MAX_DEREFERENCE){
+      iunlockput(ip);
+      end_op();
+      return -1;
+    }
   }
 
   if(ip->type == T_DEVICE){
