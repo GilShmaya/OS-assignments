@@ -374,11 +374,12 @@ iunlockput(struct inode *ip)
 
 // Return the disk block address of the nth block in inode ip.
 // If there is no such block, bmap allocates one.
+// bn = block number
 static uint
-bmap(struct inode *ip, uint bn) // ip = inode pointer, bn = block number
+bmap(struct inode *ip, uint bn)
 {
-  uint addr, *a *a2;
-  struct buf *bp, *bp2;
+  uint addr, *a;
+  struct buf *bp;
 
   if(bn < NDIRECT){
     if((addr = ip->addrs[bn]) == 0)
@@ -402,36 +403,35 @@ bmap(struct inode *ip, uint bn) // ip = inode pointer, bn = block number
   }
   bn -= NINDIRECT;
 
-  if(bn < NDOUBLE_INDIRECT){
-    uint bn_level1 = bn / NINDIRECT;
-    uint bn_level2 = bn % NINDIRECT;
-
-// checks if the level1 indirect block is allocated (and load it) and allocates if not
+  if(bn < NDOUBLINDIRECT){
+    // checks if the double indirect block is allocated (and load it) and allocates if not
     if((addr = ip->addrs[NDIRECT + 1]) == 0)
-      ip->addrs[NDIRECT + 1] = addr = balloc(ip->dev)
+      ip->addrs[NDIRECT + 1] = addr = balloc(ip->dev);
 
-//bread returns a locked buf with the contents of the indicated block- of addr
+    //bread returns a locked buf with the contents of the indicated block- of addr
     bp = bread(ip->dev, addr);
     a = (uint*)bp->data;
 
-// checks if the level2 indirect block is allocated (and load it) and allocates if not
-    if ((addr = a[bn_level1] == 0)){
-      a[bn_level1] = addr = balloc(ip->dev);
+    // checks if the level2 indirect block is allocated (and load it) and allocates if not
+    uint bn_level1_double_index = bn / NINDIRECT;
+    if ((addr = a[bn_level1_double_index]) == 0){
+      a[bn_level1_double_index] = addr = balloc(ip->dev);
       // level1 indirect block modified so write back
       log_write(bp);
     }
-    brels(bp);
+    brelse(bp);
 
-    bp2 = bread(ip->dev, addr);
-    a2 = (uint*)bp2->data;
+    bp = bread(ip->dev, addr);
+    a = (uint*)bp->data;
 
-// checks if the data block is allocated (and load it) and allocates if not
-    if((addr = a2[bn_level2]) == 0){
-      a[bn_level2] = addr = balloc(ip->dev);
+    // checks if the data block is allocated (and load it) and allocates if not
+    uint bn_level2_pos = bn % NINDIRECT;
+    if((addr = a[bn_level2_pos]) == 0){
+      a[bn_level2_pos] = addr = balloc(ip->dev);
       // level2 block modified so write back
       log_write(bp);
     }
-    brelse(bp2);
+    brelse(bp);
     return addr;
 
   }
