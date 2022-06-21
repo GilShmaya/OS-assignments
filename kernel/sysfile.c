@@ -177,7 +177,7 @@ sys_symlink(void)
   return symlink(oldpath, newpath);
 }
 
-nt
+int
 sys_readlink(void)
 {
   const char *pathname;
@@ -188,7 +188,7 @@ sys_readlink(void)
   if (argstr(0, &pathname, MAXPATH) < 0 || argstr(1, &buf, MAXPATH) < 0 || argsint(3, &bufsize, MAXPATH) < 0){
     return -1;
   }
-  readlink(pathname, buf, (size_t)buf);
+  return readlink(pathname, buf, (size_t)buf);
 }
 
 // Is the directory dp empty except for "." and ".." ?
@@ -321,6 +321,7 @@ sys_open(void)
   struct file *f;
   struct inode *ip;
   int n;
+  int max = MAX_DEREFERENCE;
 
   if((n = argstr(0, path, MAXPATH)) < 0 || argint(1, &omode) < 0)
     return -1;
@@ -339,6 +340,14 @@ sys_open(void)
       return -1;
     }
     ilock(ip);
+    // symlink case 3 in assignment4
+//When a process specifies O_NOFOLLOW in the flags to open, open should open the symlink (and not follow the symbolic link)
+    if ((ip->type == T_SYMLINK) && (omode != O_NOFOLLOW)){
+      if ((ip == dereference_link(ip, &max)) == 0){
+         end_op();
+         return -1;
+      }
+    }  
     if(ip->type == T_DIR && omode != O_RDONLY){
       iunlockput(ip);
       end_op();
@@ -358,39 +367,6 @@ sys_open(void)
     iunlockput(ip);
     end_op();
     return -1;
-  }
-
-// symlink case 3 in assignment4
-//When a process specifies O_NOFOLLOW in the flags to open, open should open the symlink (and not follow the symbolic link)
-  if ((ip->type == T_SYMLINK) && !(omode & O_NOFOLLOW)){  
-    uint count = 0;
-    while (ip->type == T_SYMLINK && count < MAX_DEREFERENCE){
-      int len = 0;
-      
-      //Read data from inode from 0 to sizeof(int) to len
-      readi(ip, 0, (uint64)&len, 0, sizeof(int));
-
-      if(len > MAXPATH)
-        panic("open:corrupted symlink inode");
-      
-      //Read data from inode from sizeof(int) to len +1 to path
-      readi(ip, 0,(uint64)path, sizeof(int), len + 1);
-      iunlockput(ip);
-
-      if((ip = namei(path)) == 0){
-        endop();
-        return -1;
-      }
-      ilock(ip);
-      count++;
-    }
-
-    //exceeded the number of sybolic links - in order to prevent a loop
-    if (count >= MAX_DEREFERENCE){
-      iunlockput(ip);
-      end_op();
-      return -1;
-    }
   }
 
   if(ip->type == T_DEVICE){
@@ -463,8 +439,13 @@ sys_chdir(void)
     return -1;
   }
   ilock(ip);
-  if(ip->type != T_DIR){
-    iunlockput(ip);
+  if(ip->type != T_DIR & ip->type != T_SYMLINK){
+    if ((ip = def))
+  }
+  
+  //symolic link case
+  if(ip->type == T_SYMLINK && ((ip = dereference_link(ip, MAX_DEREFERENCE)) == 0){
+    iunlock(ip);
     end_op();
     return -1;
   }
@@ -472,6 +453,35 @@ sys_chdir(void)
   iput(p->cwd);
   end_op();
   p->cwd = ip;
+  return 0;
+}
+
+int
+dereference_link_exec(struct inode *ip, char* buff, int buffSize){
+  struct inode *newIp;
+  int i = 0;
+
+  while(i < MAX_DEREFERENCE){
+    if (ip->type == T_SYMLINK){
+      //read the link
+      int result = readi(ip, 0, (uint64)buff, 0, buff_size);
+      if (result <= 0 || (newIp = namei(buff)) == 0){
+        iunlock(ip);
+        return 0;
+      }
+      iunlock(ip);
+      ip = newIp;
+      ilock(ip);
+      i++;
+      }
+      else{
+        iunlock(ip);
+        return 1;
+      }
+    }
+
+  //exceeded the max- loop
+  iunlock(ip);
   return 0;
 }
 
@@ -502,6 +512,20 @@ sys_exec(void)
       goto bad;
     if(fetchstr(uarg, argv[i], PGSIZE) < 0)
       goto bad;
+  }
+  struct inode *ip;
+  //check inode name
+  if ((ip = namei(path)) == 0){
+    end_op();
+    return -1;
+  }
+  ilock(ip);
+  if (ip->type == T_SYMLINK && dereference_link_exec(ip, path, MAXPATH) == 0){
+    end_op();
+    return -1;
+  }
+  else{
+    iunlock(ip);
   }
 
   int ret = exec(path, argv);

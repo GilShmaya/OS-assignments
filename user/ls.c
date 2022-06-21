@@ -40,8 +40,14 @@ ls(char *path)
     close(fd);
     return;
   }
-
+  struct stat st_target;
   switch(st.type){
+  case T_SYMLINK:
+    readlink(path, buf, 12);
+    stat(buf, &st_target);
+    printf("%s -> %s %d %d 0\n", fmtname(path), buf, target_st.type,st.ino);
+    break;
+
   case T_FILE:
     printf("%s %d %d %l\n", fmtname(path), st.type, st.ino, st.size);
     break;
@@ -62,6 +68,12 @@ ls(char *path)
       if(stat(buf, &st) < 0){
         printf("ls: cannot stat %s\n", buf);
         continue;
+      }
+      if (st.type == T_SYMLINK){
+        char target[256];
+        readlink(buf, target, 256);
+        stat(target, &st_target);
+        printf("%s -> %s %d %d 0\n", fmtname(buf),target, target_st.type, st.ino);
       }
       printf("%s %d %d %d\n", fmtname(buf), st.type, st.ino, st.size);
     }
