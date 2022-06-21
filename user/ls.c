@@ -2,6 +2,7 @@
 #include "kernel/stat.h"
 #include "user/user.h"
 #include "kernel/fs.h"
+//#include "kernel/defs.h"
 
 char*
 fmtname(char *path)
@@ -45,7 +46,7 @@ ls(char *path)
   case T_SYMLINK:
     readlink(path, buf, 12);
     stat(buf, &st_target);
-    printf("%s -> %s %d %d 0\n", fmtname(path), buf, target_st.type,st.ino);
+    printf("%s -> %s %d %d 0\n", fmtname(path), buf, st_target.type,st.ino);
     break;
 
   case T_FILE:
@@ -73,7 +74,7 @@ ls(char *path)
         char target[256];
         readlink(buf, target, 256);
         stat(target, &st_target);
-        printf("%s -> %s %d %d 0\n", fmtname(buf),target, target_st.type, st.ino);
+        printf("%s -> %s %d %d 0\n", fmtname(buf),target, st_target.type, st.ino);
       }
       printf("%s %d %d %d\n", fmtname(buf), st.type, st.ino, st.size);
     }

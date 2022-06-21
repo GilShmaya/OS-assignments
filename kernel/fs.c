@@ -713,63 +713,22 @@ nameiparent(char *path, char *name)
 }
 
 
-// Create a soft link from the oldpath to tne newpath. Return 0 upon success and -1 on failure.
-int
-symlink(const char * oldpath, const char * newpath)
-{
-  struct inode *ip;
-
-  begin_op(ROOTDEV);
-
-  // create a new inode in type T_SYMLINK
-  ip = create(newpath, T_SYMLINK, 0, 0);
-  if(ip == 0){
-    end_op(ROOTDEV);
-    return -1;
-  }
-
-  // write len and old path to the new inode
-  writei(ip, 0, (uint64)&strlen(oldpath), 0, sizeof(int))
-  writei(ip, 0, (uint64)oldpath, sizeof(int), strlen(oldpath) + 1);
-  
-  iupdate(ip);
-  iunlockput(ip);
-  
-  end_op(ROOTDEV);
-  return 0;
-}
-
-int
-readlink(const char * pathname, char * buf, int bufsize)
-{
-  struct inode *ip;
-
-  // look up and return the inode for the pathname
-  if((ip = namei(pathname)) == 0){
-    return -1;
-  }
-
-  ilock(ip);
-  int output = getlink(ip, buf, bufsize);
-  iunlock(ip);
-  return output;
-}
 
 // read link to buf
 int
-getlink(struct inode *ip, char *buf, size_t size){
-  if(ip->type != T_SYMLINK){
+getlink(struct inode *ip, char *buf, int bufsize){
+  if(ip->type != T_SYMLINK || ip->size > bufsize){
     iunlock(ip);
     return -1;
   }
-  readi(ip, buf, 0, size);
+  readi(ip, 0, (uint64)buf, 0, bufsize);
 
   return 0;
 }
 
 struct inode*
 dereference_link(struct inode *ip, int *dereference){
-  struct inode *curr;
+  struct inode *curr = ip;
   char buffer[100], name[DIRSIZ];
 
   while(ip->type == T_SYMLINK){

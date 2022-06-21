@@ -168,10 +168,11 @@ bad:
 int
 sys_symlink(void)
 {
-  const char *oldpath, *newpath;
+  char oldpath[MAXPATH], newpath[MAXPATH];
 
   // Fetch the nth word-sized system call argument as a null-terminated string. 
-  if (argstr(0, &oldpath, MAXPATH) < 0 || argstr(1, &newpath, MAXPATH) < 0){
+  memset(newpath, 0, sizeof(newpath));
+  if (argstr(0, oldpath, MAXPATH) < 0 || argstr(1, newpath, MAXPATH) < 0){
     return -1;
   }
   return symlink(oldpath, newpath);
@@ -180,15 +181,15 @@ sys_symlink(void)
 int
 sys_readlink(void)
 {
-  const char *pathname;
-  char *buf;
+  char pathname[MAXPATH];
+  char buf[MAXPATH];
   int bufsize;
 
   // Fetch the nth word-sized system call argument as a null-terminated string. 
-  if (argstr(0, &pathname, MAXPATH) < 0 || argstr(1, &buf, MAXPATH) < 0 || argsint(3, &bufsize, MAXPATH) < 0){
+  if (argstr(0, pathname, MAXPATH) < 0 || argstr(1, buf, MAXPATH) < 0 || argint(2, &bufsize) < 0){
     return -1;
   }
-  return readlink(pathname, buf, (size_t)buf);
+  return readlink(pathname, buf, bufsize);
 }
 
 // Is the directory dp empty except for "." and ".." ?
@@ -281,7 +282,6 @@ create(char *path, short type, short major, short minor)
     if(type == T_FILE && (ip->type == T_FILE || ip->type == T_DEVICE))
       return ip;
     if(type == T_SYMLINK){
-      ip->symbolic = 1;
       return ip;
     }
     iunlockput(ip);
@@ -432,6 +432,7 @@ sys_chdir(void)
   char path[MAXPATH];
   struct inode *ip;
   struct proc *p = myproc();
+  int max = MAX_DEREFERENCE;
   
   begin_op();
   if(argstr(0, path, MAXPATH) < 0 || (ip = namei(path)) == 0){
@@ -439,12 +440,14 @@ sys_chdir(void)
     return -1;
   }
   ilock(ip);
-  if(ip->type != T_DIR & ip->type != T_SYMLINK){
-    if ((ip = def))
+  if(ip->type != T_DIR && ip->type != T_SYMLINK){
+    iunlockput(ip);
+    end_op();
+    return -1;
   }
   
   //symolic link case
-  if(ip->type == T_SYMLINK && ((ip = dereference_link(ip, MAX_DEREFERENCE)) == 0){
+  if(ip->type == T_SYMLINK && ((ip = dereference_link(ip, &max)) == 0)){
     iunlock(ip);
     end_op();
     return -1;
@@ -464,7 +467,7 @@ dereference_link_exec(struct inode *ip, char* buff, int buffSize){
   while(i < MAX_DEREFERENCE){
     if (ip->type == T_SYMLINK){
       //read the link
-      int result = readi(ip, 0, (uint64)buff, 0, buff_size);
+      int result = readi(ip, 0, (uint64)buff, 0, buffSize);
       if (result <= 0 || (newIp = namei(buff)) == 0){
         iunlock(ip);
         return 0;
@@ -570,4 +573,63 @@ sys_pipe(void)
     return -1;
   }
   return 0;
+}
+
+// Create a soft link from the oldpath to tne newpath. Return 0 upon success and -1 on failure.
+int
+symlink(char * oldpath,char * newpath)
+{
+  struct inode *ip;
+
+  begin_op();
+
+  // create a new inode in type T_SYMLINK
+  ip = create(newpath, T_SYMLINK, 0, 0);
+  if(ip == 0){
+    end_op();
+    return -1;
+  }
+
+  // write len and old path to the new inode
+  int oldpath_len = strlen(oldpath);
+  writei(ip, 0, (uint64)&oldpath_len, 0, sizeof(int));
+  writei(ip, 0, (uint64)oldpath, sizeof(int), strlen(oldpath) + 1);
+  
+  iupdate(ip);
+  iunlockput(ip);
+  
+  end_op();
+  return 0;
+}
+
+int
+readlink(char * pathname, char * buf, int bufsize)
+{
+  struct inode *ip;
+  struct proc *p;
+  int output;
+
+  begin_op();
+
+  // look up and return the inode for the pathname
+  if((ip = namei(pathname)) == 0){
+    end_op();
+    return -1;
+  }
+
+  ilock(ip);
+  char newbuf[bufsize];
+  if((output = getlink(ip, newbuf, bufsize)) < 0){
+    end_op();
+    return -1;
+  }
+  
+  p = myproc();
+  if(copyout(p->pagetable, (uint64)buf, newbuf, bufsize) < 0){
+    end_op();
+    return -1;
+  }
+  iunlock(ip);
+  end_op();
+  return output;
 }

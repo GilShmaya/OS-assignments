@@ -127,8 +127,8 @@ static uint64 (*syscalls[])(void) = {
 [SYS_mknod]   sys_mknod,
 [SYS_unlink]  sys_unlink,
 [SYS_link]    sys_link,
-[SYS_SYMLINK] sys_symlink,
-[SYS_READLINK] sys_readlink,
+[SYS_symlink] sys_symlink,
+[SYS_readlink] sys_readlink,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
 };
