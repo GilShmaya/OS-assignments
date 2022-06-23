@@ -47,7 +47,7 @@ forktest(void)
 
   print("fork test\n");
   3a:	00000517          	auipc	a0,0x0
-  3e:	3fe50513          	addi	a0,a0,1022 # 438 <uptime+0xc>
+  3e:	40e50513          	addi	a0,a0,1038 # 448 <uptime+0xc>
   42:	00000097          	auipc	ra,0x0
   46:	fbe080e7          	jalr	-66(ra) # 0 <print>
 
@@ -71,7 +71,7 @@ forktest(void)
   if(n == N){
     print("fork claimed to work N times!\n");
   64:	00000517          	auipc	a0,0x0
-  68:	3e450513          	addi	a0,a0,996 # 448 <uptime+0x1c>
+  68:	3f450513          	addi	a0,a0,1012 # 458 <uptime+0x1c>
   6c:	00000097          	auipc	ra,0x0
   70:	f94080e7          	jalr	-108(ra) # 0 <print>
     exit(1);
@@ -113,7 +113,7 @@ forktest(void)
 
   print("fork test OK\n");
   b4:	00000517          	auipc	a0,0x0
-  b8:	3e450513          	addi	a0,a0,996 # 498 <uptime+0x6c>
+  b8:	3f450513          	addi	a0,a0,1012 # 4a8 <uptime+0x6c>
   bc:	00000097          	auipc	ra,0x0
   c0:	f44080e7          	jalr	-188(ra) # 0 <print>
 }
@@ -125,7 +125,7 @@ forktest(void)
   ce:	8082                	ret
       print("wait stopped early\n");
   d0:	00000517          	auipc	a0,0x0
-  d4:	39850513          	addi	a0,a0,920 # 468 <uptime+0x3c>
+  d4:	3a850513          	addi	a0,a0,936 # 478 <uptime+0x3c>
   d8:	00000097          	auipc	ra,0x0
   dc:	f28080e7          	jalr	-216(ra) # 0 <print>
       exit(1);
@@ -134,7 +134,7 @@ forktest(void)
   e6:	2b2080e7          	jalr	690(ra) # 394 <exit>
     print("wait got too many\n");
   ea:	00000517          	auipc	a0,0x0
-  ee:	39650513          	addi	a0,a0,918 # 480 <uptime+0x54>
+  ee:	3a650513          	addi	a0,a0,934 # 490 <uptime+0x54>
   f2:	00000097          	auipc	ra,0x0
   f6:	f0e080e7          	jalr	-242(ra) # 0 <print>
     exit(1);
@@ -726,72 +726,92 @@ link:
  ret
  3fa:	8082                	ret
 
-00000000000003fc <mkdir>:
-.global mkdir
-mkdir:
- li a7, SYS_mkdir
- 3fc:	48d1                	li	a7,20
+00000000000003fc <symlink>:
+.global symlink
+symlink:
+ li a7, SYS_symlink
+ 3fc:	48d9                	li	a7,22
  ecall
  3fe:	00000073          	ecall
  ret
  402:	8082                	ret
 
-0000000000000404 <chdir>:
-.global chdir
-chdir:
- li a7, SYS_chdir
- 404:	48a5                	li	a7,9
+0000000000000404 <readlink>:
+.global readlink
+readlink:
+ li a7, SYS_readlink
+ 404:	48dd                	li	a7,23
  ecall
  406:	00000073          	ecall
  ret
  40a:	8082                	ret
 
-000000000000040c <dup>:
-.global dup
-dup:
- li a7, SYS_dup
- 40c:	48a9                	li	a7,10
+000000000000040c <mkdir>:
+.global mkdir
+mkdir:
+ li a7, SYS_mkdir
+ 40c:	48d1                	li	a7,20
  ecall
  40e:	00000073          	ecall
  ret
  412:	8082                	ret
 
-0000000000000414 <getpid>:
-.global getpid
-getpid:
- li a7, SYS_getpid
- 414:	48ad                	li	a7,11
+0000000000000414 <chdir>:
+.global chdir
+chdir:
+ li a7, SYS_chdir
+ 414:	48a5                	li	a7,9
  ecall
  416:	00000073          	ecall
  ret
  41a:	8082                	ret
 
-000000000000041c <sbrk>:
-.global sbrk
-sbrk:
- li a7, SYS_sbrk
- 41c:	48b1                	li	a7,12
+000000000000041c <dup>:
+.global dup
+dup:
+ li a7, SYS_dup
+ 41c:	48a9                	li	a7,10
  ecall
  41e:	00000073          	ecall
  ret
  422:	8082                	ret
 
-0000000000000424 <sleep>:
-.global sleep
-sleep:
- li a7, SYS_sleep
- 424:	48b5                	li	a7,13
+0000000000000424 <getpid>:
+.global getpid
+getpid:
+ li a7, SYS_getpid
+ 424:	48ad                	li	a7,11
  ecall
  426:	00000073          	ecall
  ret
  42a:	8082                	ret
 
-000000000000042c <uptime>:
-.global uptime
-uptime:
- li a7, SYS_uptime
- 42c:	48b9                	li	a7,14
+000000000000042c <sbrk>:
+.global sbrk
+sbrk:
+ li a7, SYS_sbrk
+ 42c:	48b1                	li	a7,12
  ecall
  42e:	00000073          	ecall
  ret
  432:	8082                	ret
+
+0000000000000434 <sleep>:
+.global sleep
+sleep:
+ li a7, SYS_sleep
+ 434:	48b5                	li	a7,13
+ ecall
+ 436:	00000073          	ecall
+ ret
+ 43a:	8082                	ret
+
+000000000000043c <uptime>:
+.global uptime
+uptime:
+ li a7, SYS_uptime
+ 43c:	48b9                	li	a7,14
+ ecall
+ 43e:	00000073          	ecall
+ ret
+ 442:	8082                	ret

@@ -165,32 +165,6 @@ bad:
   return -1;
 }
 
-int
-sys_symlink(void)
-{
-  char oldpath[MAXPATH], newpath[MAXPATH];
-
-  // Fetch the nth word-sized system call argument as a null-terminated string. 
-  memset(newpath, 0, sizeof(newpath));
-  if (argstr(0, oldpath, MAXPATH) < 0 || argstr(1, newpath, MAXPATH) < 0){
-    return -1;
-  }
-  return symlink(oldpath, newpath);
-}
-
-int
-sys_readlink(void)
-{
-  char pathname[MAXPATH];
-  char buf[MAXPATH];
-  int bufsize;
-
-  // Fetch the nth word-sized system call argument as a null-terminated string. 
-  if (argstr(0, pathname, MAXPATH) < 0 || argstr(1, buf, MAXPATH) < 0 || argint(2, &bufsize) < 0){
-    return -1;
-  }
-  return readlink(pathname, buf, bufsize);
-}
 
 // Is the directory dp empty except for "." and ".." ?
 static int
@@ -575,16 +549,23 @@ sys_pipe(void)
   return 0;
 }
 
+
 // Create a soft link from the oldpath to tne newpath. Return 0 upon success and -1 on failure.
 int
-symlink(char * oldpath,char * newpath)
+sys_symlink(void)
 {
-  struct inode *ip;
+  char oldpath[MAXPATH], newpath[MAXPATH];
+
+  // Fetch the nth word-sized system call argument as a null-terminated string. 
+  memset(oldpath, 0, sizeof(oldpath));
+  if (argstr(0, oldpath, MAXPATH) < 0 || argstr(1, newpath, MAXPATH) < 0){
+    return -1;
+  }
 
   begin_op();
 
   // create a new inode in type T_SYMLINK
-  ip = create(newpath, T_SYMLINK, 0, 0);
+  struct inode* ip = create(newpath, T_SYMLINK, 0, 0);
   if(ip == 0){
     end_op();
     return -1;
@@ -603,11 +584,19 @@ symlink(char * oldpath,char * newpath)
 }
 
 int
-readlink(char * pathname, char * buf, int bufsize)
+sys_readlink(void)
 {
+  char pathname[MAXPATH];
+  uint64 buf;
+  int bufsize;
   struct inode *ip;
   struct proc *p;
   int output;
+
+  // Fetch the nth word-sized system call argument as a null-terminated string. 
+  if (argstr(0, pathname, MAXPATH) < 0 || argaddr(1, &buf) < 0 || argint(2, &bufsize) < 0){
+    return -1;
+  }
 
   begin_op();
 
@@ -625,7 +614,7 @@ readlink(char * pathname, char * buf, int bufsize)
   }
   
   p = myproc();
-  if(copyout(p->pagetable, (uint64)buf, newbuf, bufsize) < 0){
+  if(copyout(p->pagetable, buf, newbuf, bufsize) < 0){
     end_op();
     return -1;
   }

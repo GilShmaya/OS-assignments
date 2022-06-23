@@ -70,6 +70,16 @@ link:
  li a7, SYS_link
  ecall
  ret
+.global symlink
+symlink:
+ li a7, SYS_symlink
+ ecall
+ ret
+.global readlink
+readlink:
+ li a7, SYS_readlink
+ ecall
+ ret
 .global mkdir
 mkdir:
  li a7, SYS_mkdir

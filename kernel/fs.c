@@ -712,7 +712,21 @@ nameiparent(char *path, char *name)
   return namex(path, 1, name, MAX_DEREFERENCE);
 }
 
+int
+readlink(const char *pathname, char *buf, int bufsize){
+  char name[DIRSIZ];
+  int output;
+  struct inode* ip;
 
+  if((ip = namex((char*)(pathname), 0, name, MAX_DEREFERENCE)) == 0){
+    return -1;
+  }
+  ilock(ip);
+  output = getlink(ip, buf, bufsize);
+
+  iunlock(ip);
+  return output;
+}
 
 // read link to buf
 int

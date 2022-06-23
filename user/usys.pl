@@ -29,6 +29,8 @@ entry("mknod");
 entry("unlink");
 entry("fstat");
 entry("link");
+entry("symlink");
+entry("readlink");
 entry("mkdir");
 entry("chdir");
 entry("dup");
