@@ -724,8 +724,8 @@ readlink(const char *pathname, char *buf, int bufsize){
   }
   ilock(ip);
   output = getlink(ip, buf, bufsize);
-
   iunlock(ip);
+
   return output;
 }
 
@@ -737,14 +737,13 @@ getlink(struct inode *ip, char *buf, int bufsize){
     return -1;
   }
   readi(ip, 0, (uint64)buf, 0, bufsize);
-
   return 0;
 }
 
 struct inode*
 dereference_link(struct inode *ip, int *dereference){
   struct inode *curr = ip;
-  char buffer[100], name[DIRSIZ];
+  char buffer[256], name[DIRSIZ];
 
   while(curr->type == T_SYMLINK){
     *dereference = *dereference - 1;

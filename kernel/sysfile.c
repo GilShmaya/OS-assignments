@@ -288,7 +288,7 @@ create(char *path, short type, short major, short minor)
 
 uint64
 sys_open(void)
-{
+{ 
   char path[MAXPATH];
   int fd, omode;
   struct file *f;
@@ -321,7 +321,7 @@ sys_open(void)
          return -1;
       }
     }  
-    if(ip->type == T_DIR && omode != O_RDONLY){
+    if(ip->type == T_DIR && omode != O_RDONLY && omode != O_NOFOLLOW){
       iunlockput(ip);
       end_op();
       return -1;
@@ -496,12 +496,12 @@ sys_exec(void)
     return -1;
   }
   ilock(ip);
-  if (ip->type == T_SYMLINK && dereference_link_exec(ip, path, MAXPATH) == 0){
+  if (ip->type != T_SYMLINK){
+    iunlock(ip);
+  }
+  else if(dereference_link_exec(ip, path, MAXPATH) == 0){
     end_op();
     return -1;
-  }
-  else{
-    iunlock(ip);
   }
 
   int ret = exec(path, argv);
@@ -580,7 +580,7 @@ sys_symlink(void)
 
 int
 sys_readlink(void)
-{
+{   
   char pathname[MAXPATH];
   uint64 buf;
   int bufsize;
@@ -603,13 +603,16 @@ sys_readlink(void)
 
   ilock(ip);
   char newbuf[bufsize];
-  if((output = getlink(ip, newbuf, bufsize)) < 0){
+  if(ip->type != T_SYMLINK || ip->size > bufsize){
+    iunlock(ip);
     end_op();
     return -1;
   }
+  output = readi(ip, 0, (uint64)newbuf, 0, bufsize);
   
   p = myproc();
   if(copyout(p->pagetable, buf, newbuf, bufsize) < 0){
+    iunlock(ip);
     end_op();
     return -1;
   }
