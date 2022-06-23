@@ -352,8 +352,8 @@ stat(const char *n, struct stat *st)
   int fd;
   int r;
 
-  fd = open(n, O_RDONLY);
- 236:	4581                	li	a1,0
+  fd = open(n, O_NOFOLLOW);
+ 236:	4591                	li	a1,4
  238:	00000097          	auipc	ra,0x0
  23c:	176080e7          	jalr	374(ra) # 3ae <open>
   if(fd < 0)

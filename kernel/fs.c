@@ -231,6 +231,7 @@ iupdate(struct inode *ip)
   dip->minor = ip->minor;
   dip->nlink = ip->nlink;
   dip->size = ip->size;
+
   memmove(dip->addrs, ip->addrs, sizeof(ip->addrs));
   log_write(bp);
   brelse(bp);
@@ -673,7 +674,7 @@ namex(char *path, int nameiparent, char *name, int dereference_count)
   while((path = skipelem(path, name)) != 0){
     ilock(ip);
     // avoid loops by not allow more then MAX_DEREFERENCE symbolic links.
-    if(!(ip = dereference_link(ip, &dereference_count))){
+    if((ip = dereference_link(ip, &dereference_count)) == 0){
       return 0;
     }
     if(ip->type != T_DIR){
@@ -745,8 +746,8 @@ dereference_link(struct inode *ip, int *dereference){
   struct inode *curr = ip;
   char buffer[100], name[DIRSIZ];
 
-  while(ip->type == T_SYMLINK){
-    (*dereference)--;
+  while(curr->type == T_SYMLINK){
+    *dereference = *dereference - 1;
     if(!(*dereference)){
       iunlockput(curr);
       return 0;

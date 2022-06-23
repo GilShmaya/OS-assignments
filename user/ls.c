@@ -44,9 +44,9 @@ ls(char *path)
   struct stat st_target;
   switch(st.type){
   case T_SYMLINK:
-    readlink(path, buf, 12);
+    readlink(path, buf, 512);
     stat(buf, &st_target);
-    printf("%s -> %s %d %d 0\n", fmtname(path), buf, st_target.type,st.ino);
+    printf("%s -> %s %d %d 0\n", fmtname(path), buf, st.type,st.ino);
     break;
 
   case T_FILE:

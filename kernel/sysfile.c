@@ -165,7 +165,6 @@ bad:
   return -1;
 }
 
-
 // Is the directory dp empty except for "." and ".." ?
 static int
 isdirempty(struct inode *dp)
@@ -549,7 +548,6 @@ sys_pipe(void)
   return 0;
 }
 
-
 // Create a soft link from the oldpath to tne newpath. Return 0 upon success and -1 on failure.
 int
 sys_symlink(void)
@@ -572,11 +570,8 @@ sys_symlink(void)
   }
 
   // write len and old path to the new inode
-  int oldpath_len = strlen(oldpath);
-  writei(ip, 0, (uint64)&oldpath_len, 0, sizeof(int));
-  writei(ip, 0, (uint64)oldpath, sizeof(int), strlen(oldpath) + 1);
+  if(writei(ip, 0, (uint64)oldpath, 0, MAXPATH) != MAXPATH);
   
-  iupdate(ip);
   iunlockput(ip);
   
   end_op();
